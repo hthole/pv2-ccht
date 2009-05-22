@@ -5,13 +5,12 @@
  *      Author: hendrik, christian
  */
 
+#define	PROCESSES	4
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-
-// funktionsprototypen
-void    print_debug(int *debug_info, int array_size);
-int     get_random_number(int max_size);
+#include <string.h>
 
 int main(int argc, char **argv)
 {
@@ -45,6 +44,41 @@ int main(int argc, char **argv)
 	// debug ausgabe
 	print_debug(&searcharray, array_size);
 
+
+	// -------------- start parallel -----------------
+
+	int split_size = array_size / PROCESSES;
+	int field_count = 0;
+	printf("\nsplit size: %i\n", split_size);
+
+	for(i = 1; i <= PROCESSES; i++)
+	{
+		if(i == PROCESSES)
+			split_size += array_size % PROCESSES;
+
+		int p_search_array[split_size];
+		int j;
+
+		printf("\nprocess %i:\n", i);
+
+		for(j = 0; j < split_size; j++)
+		{
+			p_search_array[j] = searcharray[field_count];
+			field_count++;
+			printf("|%i", p_search_array[j]);
+		}
+
+		printf("|");
+
+		int result = find_value(&p_search_array, split_size, searchfor);
+		if(result != -1)
+			break;
+	}
+
+	printf("\n\ngefunden von %i\n", i);
+
+	// --------------- end parallel -----------------
+
 	return 0;
 }
 
@@ -73,4 +107,21 @@ int get_random_number(int max_size)
 	srand(time(0));
 
 	return rand() % max_size;
+}
+
+int find_value(int *searcharray, int array_size, int search)
+{
+	int i;
+	int result = -1;
+
+	for(i = 0; i < array_size; i++)
+	{
+		if(searcharray[i] == search)
+		{
+			result = i;
+			break;
+		}
+	}
+
+	return result;
 }
