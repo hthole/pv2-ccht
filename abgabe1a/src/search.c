@@ -49,19 +49,23 @@ int main(int argc, char **argv)
 
 	int split_size = array_size / PROCESSES;
 	int field_count = 0;
+	int offset = array_size % PROCESSES;;
 	printf("\nsplit size: %i\n", split_size);
 
 	for(i = 1; i <= PROCESSES; i++)
 	{
-		if(i == PROCESSES)
-			split_size += array_size % PROCESSES;
+		int p_split_size = split_size;
 
-		int p_search_array[split_size];
+		if(i == PROCESSES)
+			p_split_size += array_size % PROCESSES;
+
+
+		int p_search_array[p_split_size];
 		int j;
 
 		printf("\nprocess %i:\n", i);
 
-		for(j = 0; j < split_size; j++)
+		for(j = 0; j < p_split_size; j++)
 		{
 			p_search_array[j] = searcharray[field_count];
 			field_count++;
@@ -70,7 +74,7 @@ int main(int argc, char **argv)
 
 		printf("|");
 
-		int result = find_value(&p_search_array, split_size, searchfor);
+		int result = find_value(&p_search_array, p_split_size, searchfor);
 		if(result != -1)
 			break;
 	}
