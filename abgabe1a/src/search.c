@@ -20,6 +20,7 @@
 
 #include <assert.h>
 
+int debug_info(int* , int);
 int get_random_number(int);
 int find_value(int *, int, int);
 
@@ -63,7 +64,7 @@ int main(int argc, char **argv) {
 	int split_size = array_size / (total - 1);
 
 	if (me == 0) {
-		printf("we are %i buddies\n", total);
+		printf("we are %i buddies and i'm the leader\n", total);
 
 		/* initialisieren des arrays */
 		for (i = 0; i < array_size; i++) {
@@ -79,6 +80,14 @@ int main(int argc, char **argv) {
 
 		/* debug ausgabe */
 		// print_debug(&searcharray, array_size);
+
+		for (i = 0; i < array_size; i++) {
+			printf("|%i", searcharray[i]);
+
+			if ((i + 1) % 20 == 0) {
+				printf("|\n");
+			}
+		}
 
 		int field_count = 0;
 
@@ -100,13 +109,15 @@ int main(int argc, char **argv) {
 
 			assert (MPI_Isend(p_search_array, split_size + 1, MPI_INT, 1, tag,
 							MPI_COMM_WORLD, &request) == MPI_SUCCESS);
+
+
 		}
 
 	} else {
 		int p_search_array[split_size];
 
 		assert (MPI_Irecv(&p_search_array, split_size + 1, MPI_INT, 0, tag,
-						MPI_COMM_WORLD, &status) == MPI_SUCCESS);
+						MPI_COMM_WORLD, &request) == MPI_SUCCESS);
 
 		//int result = find_value(&p_search_array, split_size, searchfor);
 
