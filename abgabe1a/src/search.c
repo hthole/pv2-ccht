@@ -18,6 +18,8 @@
 
 #include <assert.h>
 
+int get_random_number(int);
+
 int main(int argc, char **argv[]) {
 
 	/* Deklarationen fuer parallel kram */
@@ -60,40 +62,47 @@ int main(int argc, char **argv[]) {
 	p_buf_size = buf_size / total;
 	int recvbuf[p_buf_size];
 
-	if(me == ROOT) {
-		for(i = 0; i < buf_size; i++) {
-			sendbuf[i] = i;
+	if (me == ROOT) {
+		for (i = 0; i < buf_size; i++) {
+			sendbuf[i] = 0;
 		}
+		int rand = get_random_number(buf_size);
+		printf("random index: %i\n", rand);
+		sendbuf[rand] = search_for;
 	}
 
-	MPI_Scatter(sendbuf, p_buf_size, MPI_INT, recvbuf, p_buf_size, MPI_INT, ROOT, MPI_COMM_WORLD);
-	// MPI_Barrier(MPI_COMM_WORLD);
-	MPI_Irecv(&stop, 1, MPI_INT, MPI_ANY_SOURCE, tag, MPI_COMM_WORLD, &request);
+	assert(MPI_Scatter(sendbuf, p_buf_size, MPI_INT, recvbuf, p_buf_size,
+			MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
 
-	MPI_Test(&request, &was_found, &status);
+	assert(MPI_Irecv(&stop, 1, MPI_INT, MPI_ANY_SOURCE, tag, MPI_COMM_WORLD,
+			&request) == MPI_SUCCESS);
 
+	assert(MPI_Test(&request, &was_found, &status) == MPI_SUCCESS);
 
 	printf("%i buf size %i\n", me, p_buf_size);
-	for(i = 0; !was_found && i < p_buf_size; i++) {
+	for (i = 0; !was_found && i < p_buf_size; i++) {
 		// printf("%i.\t%i\t->\t%i\t%i\n", me, i, recvbuf[i], was_found);
 
-		if(recvbuf[i] == search_for) {
-			printf("gefunden an position: %i, von prozess: %i\n", (i + me * p_buf_size), me);
+		if (recvbuf[i] == search_for) {
+			printf("gefunden an position: %i, von prozess: %i\n", (i + me
+					* p_buf_size), me);
 
 			int j;
-			for(j = 0; j < total; j++) {
+			for (j = 0; j < total; j++) {
 				stop = j;
-				MPI_Send(&stop, 1, MPI_INT, j, tag, MPI_COMM_WORLD);
+				assert(MPI_Send(&stop, 1, MPI_INT, j, tag, MPI_COMM_WORLD)
+						== MPI_SUCCESS);
 			}
 		}
 
-		MPI_Test(&request, &was_found, &status);
+		assert(MPI_Test(&request, &was_found, &status) == MPI_SUCCESS);
 	}
 
-	printf("prozess %i bei position %i gestoppt.\n", me, (i + me * p_buf_size));
+	printf("prozess %i bei position %i gestoppt.\n", me, ((i - 1) + me
+			* p_buf_size));
 
 	/* MPI Laufzeitsystem beenden */
-	assert (MPI_Finalize() == MPI_SUCCESS);
+	assert(MPI_Finalize() == MPI_SUCCESS);
 
 	return 0;
 }
