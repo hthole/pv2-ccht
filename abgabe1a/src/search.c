@@ -27,6 +27,8 @@ int main(int argc, char **argv[]) {
 	int buf_size;
 	int p_buf_size;
 	int search_for;
+	int was_found;
+	int stop = 1337;
 	int i;
 
 	/* Initialisierung */
@@ -65,13 +67,40 @@ int main(int argc, char **argv[]) {
 	}
 
 	MPI_Scatter(sendbuf, p_buf_size, MPI_INT, recvbuf, p_buf_size, MPI_INT, ROOT, MPI_COMM_WORLD);
+	// MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Irecv(&stop, 1, MPI_INT, MPI_ANY_SOURCE, tag, MPI_COMM_WORLD, &request);
 
-	for(i = 0; i < p_buf_size; i++) {
-		printf("%i.\t%i\t->\t%i\n", me, i, recvbuf[i]);
+	MPI_Test(&request, &was_found, &status);
+
+
+	printf("%i buf size %i\n", me, p_buf_size);
+	for(i = 0; !was_found && i < p_buf_size; i++) {
+		// printf("%i.\t%i\t->\t%i\t%i\n", me, i, recvbuf[i], was_found);
+
+		if(recvbuf[i] == search_for) {
+			printf("gefunden an position: %i, von prozess: %i\n", (i + me * p_buf_size), me);
+
+			int j;
+			for(j = 0; j < total; j++) {
+				stop = j;
+				MPI_Send(&stop, 1, MPI_INT, j, tag, MPI_COMM_WORLD);
+			}
+		}
+
+		MPI_Test(&request, &was_found, &status);
 	}
+
+	printf("prozess %i bei position %i gestoppt.\n", me, (i + me * p_buf_size));
 
 	/* MPI Laufzeitsystem beenden */
 	assert (MPI_Finalize() == MPI_SUCCESS);
 
 	return 0;
+}
+
+/* erzeugt eine zufallszahl zwischen 0 und max_size - 1 */
+int get_random_number(int max_size) {
+	srand(time(0));
+
+	return rand() % max_size;
 }
