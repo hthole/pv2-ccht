@@ -66,7 +66,7 @@ void read_file(int *numbers, int count, struct node *first_node, char *filename)
 
 			while (z != NULL && cols++ <= count)
 			{
-				// fŸr jede spalte (zahl) in der zeile
+				// fuer jede spalte (zahl) in der zeile
 				new_node = malloc(sizeof(*new_node));
 				new_node->value = (int) z;
 				new_node->next = NULL;
@@ -76,6 +76,7 @@ void read_file(int *numbers, int count, struct node *first_node, char *filename)
 			}
 		}
 		fclose(file);
+		free(file);
 	}
 
 	print_debug(&first_node);
@@ -106,7 +107,9 @@ void append(struct node **first_node, struct node *new_node)
 		iter->next = new_node; // haenge neuen knoten an
 	}
 	else
+	{
 		// wenn liste leer
 		*first_node = new_node; // erste element = letztes element
+	}
 }
 
