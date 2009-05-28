@@ -64,37 +64,50 @@ int main(int argc, char **argv) {
 
 	if (me == ROOT) {
 		read_file(send_list, count, argv[2]);
+		print_debug(send_list, count);
 	}
 
-	// -------------
+	int j = 0;
 
-	int p_buf_size = count / total;
-	// loesung fuer offset suchen
-	// int offset = count % total;
+	while (j < count) {
+		int p_send_list[total];
+		int p_recv_list[1];
 
-	// array an prozesse verteilen
-	assert(MPI_Scatter(send_list, p_buf_size, MPI_INT, recv_list, count,
-					MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
-	assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
+		if (me == ROOT) {
+			printf("%i\n", j);
+			for (i = j; i < (j + total); i++) {
+				printf("filling %i\t\t", i);
+				if (((count - 1) % (total - 1) != 0) && (i >= count)) {
+					p_send_list[i] = 0;
+				} else {
+					p_send_list[i] = send_list[i];
+				}
+				printf("%i -> %i\n", i, p_send_list[i]);
+			}
+		}
 
-	for (i = 0; i < p_buf_size; i++) {
-		printf("%i.\t%i\t->\t%i\n", me, i, recv_list[i]);
+		printf("%i is done\n", me);
+
+		//------ bis hierhin richtig!!!!!!
+
+		//assert(MPI_Scatter(p_send_list, 1, MPI_INT, p_recv_list, 1,
+		//				MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
+		//assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
+
+		//int *recv = (int *) malloc(sizeof(int));
+		//int *p2_recv_list = (int *) malloc(sizeof(int));
+		int p2_recv_list[1];
+
+		//assert(MPI_Scan(p_recv_list, p2_recv_list, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD) == MPI_SUCCESS);
+		//assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
+
+		for (i = j; i < (j + total); i++) {
+			//recv_list[i] = p2_recv_list[i];
+		}
+
+
+		j += total - 1;
 	}
-
-	assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
-
-	//int *recv = (int *) malloc(sizeof(int));
-	int p_recv_list[p_buf_size];
-
-	assert(MPI_Scan(recv_list, p_recv_list, p_buf_size, MPI_INT, MPI_SUM, MPI_COMM_WORLD) == MPI_SUCCESS);
-	assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
-
-	for (i = 0; i < p_buf_size; i++) {
-		printf("%i. (sum)\t%i\t->\t%i\n", me, i, p_recv_list[i]);
-	}
-
-	// -------------
-
 
 	/* MPI Laufzeitsystem beenden */
 	assert(MPI_Finalize() == MPI_SUCCESS);
