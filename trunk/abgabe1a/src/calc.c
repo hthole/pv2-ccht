@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
 						MPI_COMM_WORLD) == MPI_SUCCESS);
 		assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
 
-		for(i = j; i < (j + total); i++) {
+		for (i = j; i < (j + total); i++) {
 			send_list[i] = gather_list[i];
 		}
 
@@ -94,10 +94,9 @@ int main(int argc, char **argv) {
 	}
 
 	if (me == ROOT) {
-		for(i = (j - 1); i < count; i++) {
-			gather_list[i] = gather_list[i-1] + gather_list[i];
+		for (i = (j + 1); i < count; i++) {
+			gather_list[i] = gather_list[i - 1] + send_list[i];
 		}
-
 		for (i = 0; i < count; i++) {
 			printf("%i.\t%i\t->\t%i\n", me, i, gather_list[i]);
 		}
