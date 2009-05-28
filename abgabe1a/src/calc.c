@@ -70,20 +70,20 @@ int main(int argc, char **argv) {
 	int j = 0;
 	while (j < (count - total)) {
 		int *p_send = &send_list[j];
-		int *p_gather = &gather_list[j];
-		int *p_scan = &scan_list[0];
 		int *p_recv = &recv_list[0];
+		int *p_scan = &scan_list[0];
+		int *p_gather = &gather_list[j];
 
-		assert(MPI_Scatter(p_send, block_size, MPI_INT, p_recv, block_size, MPI_INT, ROOT,
-						MPI_COMM_WORLD) == MPI_SUCCESS);
+		assert(MPI_Scatter(p_send, block_size, MPI_INT, p_recv, block_size,
+				MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
 		assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
 
 		assert(MPI_Scan(p_recv, p_scan, block_size, MPI_INT, MPI_SUM,
-						MPI_COMM_WORLD) == MPI_SUCCESS);
+				MPI_COMM_WORLD) == MPI_SUCCESS);
 		assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
 
-		assert(MPI_Gather(p_scan, block_size, MPI_INT, p_gather, block_size, MPI_INT, ROOT,
-						MPI_COMM_WORLD) == MPI_SUCCESS);
+		assert(MPI_Gather(p_scan, block_size, MPI_INT, p_gather, block_size,
+				MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
 		assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
 
 		for (i = j; i < (j + total); i++) {
@@ -95,11 +95,35 @@ int main(int argc, char **argv) {
 
 	if (me == ROOT) {
 		for (i = (j + 1); i < count; i++) {
-			gather_list[i] = gather_list[i - 1] + send_list[i];
+			send_list[i] = send_list[i - 1] + send_list[i];
 		}
 		for (i = 0; i < count; i++) {
-			printf("%i.\t%i\t->\t%i\n", me, i, gather_list[i]);
+			printf("%i\t->\t%i\n", i, send_list[i]);
 		}
+	}
+
+	j = 0;
+	long sum = 0;
+	while (j < (count - total)) {
+		int *p_send = &send_list[j];
+		int *p_recv = &recv_list[0];
+		int *p_reduce = &scan_list[0];
+
+		assert(MPI_Scatter(p_send, block_size, MPI_INT, p_recv, block_size,
+				MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
+
+		assert(MPI_Reduce(p_recv, p_reduce, block_size, MPI_INT, MPI_SUM, ROOT,
+				MPI_COMM_WORLD) == MPI_SUCCESS);
+
+		sum += scan_list[0];
+		j += total;
+	}
+
+	if(me == ROOT) {
+		for(i = j; i < count; i++) {
+			sum += send_list[i];
+		}
+		printf("macht gesamt: %i\n", sum);
 	}
 
 	/* MPI Laufzeitsystem beenden */
