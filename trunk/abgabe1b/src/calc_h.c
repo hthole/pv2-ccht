@@ -58,9 +58,9 @@ int main(int argc, char **argv) {
 	int elements = atoi(argv[1]);
 	int send_list[elements];
 	int recv_list[elements];
-//	int scan_list[elements];
-//	int gather_list[elements];
-//	int block_size = 1;
+	//	int scan_list[elements];
+	//	int gather_list[elements];
+	//	int block_size = 1;
 
 	// array aufteilen
 	int chunk_size = elements / total;
@@ -72,35 +72,43 @@ int main(int argc, char **argv) {
 
 		int k;
 		for (k = 0; k < total; k++) {
-			int *p_send = &send_list[elements];
-			MPI_Isend(p_send, elements, MPI_INT, k, 99, MPI_COMM_WORLD, &request);
+			MPI_Isend(send_list, elements, MPI_INT, k, 99, MPI_COMM_WORLD,
+					&request);
 		}
 	}
-	printf("hier ist %i\n", me);
+	//printf("hier ist %i\n", me);
 
-	int *p_recv = &recv_list[elements];
-	MPI_Irecv(p_recv, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request);
+	MPI_Irecv(recv_list, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request);
 	MPI_Wait(&request, &status);
 
 	int l;
-	int end = (chunk_size * me) + chunk_size-1;
+	int end = (chunk_size * me) + chunk_size;
+	int start = chunk_size * me;
 
-	if(me == total) {
+	if (me == (total - 1)) {
 		end += offset;
 	}
 
-	for (l = 1; l < end; l++) {
-	//	p_recv[l] += p_recv[l-1];
+	int p_sum = 0;
+	for (l = 0; l <= start; l++) {
+		p_sum += recv_list[l];
 	}
 
-	printf("Hallo!\n");
+	recv_list[start] = p_sum;
 
+	for (l = start; l < end - 1; l++) {
+		recv_list[l + 1] += recv_list[l];
+	}
 
+	//printf("Hallo!\n");
 
+	MPI_Barrier(MPI_COMM_WORLD);
 
+	if (me == ROOT) {
+		// debug ausgabe des ersten teils
+		// printf("\n----------\n\n");
+		// print_debug(recv_list, elements);
 
-
-	if(me == ROOT) {
 		printf("macht gesamt: %i\n", sum);
 	}
 
