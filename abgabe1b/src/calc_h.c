@@ -82,8 +82,8 @@ int main(int argc, char **argv) {
 	MPI_Wait(&request, &status);
 
 	int l;
-	int start = chunk_size * me;
-	for (l = start; l < chunk_size + start; l++) {
+	int end = (chunk_size * me) + chunk_size;
+	for (l = 0; l < end; l++) {
 		// hier für den rechner aufaddieren
 	}
 
