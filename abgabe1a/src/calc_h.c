@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
 
 	if (me == ROOT) {
 		read_file(send_list, elements, argv[2]);
-		print_debug(send_list, elements);
+		//print_debug(send_list, elements);
 
 		for (k = 0; k < total; k++) {
 			MPI_Isend(send_list, elements, MPI_INT, k, 99, MPI_COMM_WORLD,
@@ -105,12 +105,16 @@ int main(int argc, char **argv) {
 	if (me != ROOT) {
 		MPI_Send(recv_list, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD);
 	} else {
+		for(l = 0; l < chunk_size; l++) {
+			send_list[l] = recv_list[l];
+		}
+
 		for(k = 1; k < total; k++) {
 			int tmp[elements];
-
-			MPI_Recv(tmp, elements, MPI_INT, k, 99, MPI_COMM_WORLD, &status);
 			end = (chunk_size * k) + chunk_size;
 			start = chunk_size * k;
+
+			MPI_Recv(tmp, elements, MPI_INT, k, 99, MPI_COMM_WORLD, &status);
 
 			if (k == (total - 1)) {
 				end += offset;
@@ -123,12 +127,17 @@ int main(int argc, char **argv) {
 
 	}
 
-
+	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (me == ROOT) {
 		// debug ausgabe des ersten teils
-		printf("\n----------\n\n");
-		 print_debug(send_list, elements);
+		// printf("\n----------\n\n");
+		// print_debug(send_list, elements);
+
+		sum = 0;
+		for(l = 0; l < elements; l++) {
+			sum += send_list[l];
+		}
 
 		printf("macht gesamt: %i\n", sum);
 	}
