@@ -83,8 +83,8 @@ int main(int argc, char **argv) {
 
 	int l;
 	int end = (chunk_size * me) + chunk_size;
-	for (l = 0; l < end; l++) {
-		// hier für den rechner aufaddieren
+	for (l = 1; l < end; l++) {
+		p_recv[l] += p_recv[l-1];
 	}
 
 	printf("Hallo!\n");
