@@ -82,9 +82,9 @@ int main(int argc, char **argv) {
 	MPI_Wait(&request, &status);
 
 	int l;
-	int end = (chunk_size * me) + chunk_size;
+	int end = (chunk_size * me) + chunk_size-1;
 	for (l = 1; l < end; l++) {
-		p_recv[l] += p_recv[l-1];
+	//	p_recv[l] += p_recv[l-1];
 	}
 
 	printf("Hallo!\n");
