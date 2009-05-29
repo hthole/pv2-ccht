@@ -17,7 +17,7 @@
 #include <assert.h>
 
 #define ROOT        0
-#define FILE_PATH	"./resources/"
+#define FILE_PATH	"../resources/"
 #define FILE_MODE	"r"
 #define TOKEN 		" "
 #define BUF_SIZE	500000
@@ -63,7 +63,8 @@ int main(int argc, char **argv) {
 //	int block_size = 1;
 
 	// array aufteilen
-	int chunk_size = elements / (total-1);
+	int chunk_size = elements / total;
+	int offset = elements % total;
 
 	if (me == ROOT) {
 		read_file(send_list, elements, argv[2]);
@@ -83,6 +84,11 @@ int main(int argc, char **argv) {
 
 	int l;
 	int end = (chunk_size * me) + chunk_size-1;
+
+	if(me == total) {
+		end += offset;
+	}
+
 	for (l = 1; l < end; l++) {
 	//	p_recv[l] += p_recv[l-1];
 	}
