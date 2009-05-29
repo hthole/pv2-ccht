@@ -71,17 +71,18 @@ int main(int argc, char **argv) {
 
 		int k;
 		for (k = 1; k < total; k++) {
-			int *p_send = &send_list[elements+(chunk_size*k-1)];
-			MPI_Isend(p_send, chunk_size, MPI_INT, k, 99, MPI_COMM_WORLD, &request);
+			int *p_send = &send_list[elements];
+			MPI_Isend(p_send, elements, MPI_INT, k, 99, MPI_COMM_WORLD, &request);
 			MPI_Wait(&request, &status);
 		}
 	} else {
-		int *p_recv = &recv_list[elements+(chunk_size*me-1)];
-		MPI_Irecv(p_recv, chunk_size, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request);
+		int *p_recv = &recv_list[elements];
+		MPI_Irecv(p_recv, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request);
 		MPI_Wait(&request, &status);
 
 		int l;
-		for (l = 0; l < chunk_size; l++) {
+		int start = chunk_size * (me - 1);
+		for (l = start; l < chunk_size + start; l++) {
 			// hier für den rechner aufaddieren
 		}
 	}
