@@ -23,6 +23,8 @@
 #define BUF_SIZE	500000
 #define PVERS       1
 
+#define PARALLEL	1
+
 void read_file(int[], int, char[]);
 void print_debug(int[], int);
 
@@ -31,6 +33,7 @@ int main(int argc, char **argv) {
 	int me, total, tag = 99, i;
 	MPI_Status status;
 	MPI_Request request;
+	double start, end;
 
 	/* Initialisierung */
 	if (MPI_Init(&argc, &argv) != MPI_SUCCESS) {
@@ -63,11 +66,17 @@ int main(int argc, char **argv) {
 
 	if (me == ROOT) {
 		read_file(send_list, count, argv[2]);
+
+#ifdef DEBUG
 		print_debug(send_list, count);
+#endif
 
 	}
 
+	start = MPI_Wtime();
+
 	int j = 0;
+#ifdef PARALLEL
 	while (j < (count - total)) {
 		int *p_send = &send_list[j];
 		int *p_recv = &recv_list[0];
@@ -75,15 +84,15 @@ int main(int argc, char **argv) {
 		int *p_gather = &gather_list[j];
 
 		assert(MPI_Scatter(p_send, block_size, MPI_INT, p_recv, block_size,
-				MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
+						MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
 		assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
 
 		assert(MPI_Scan(p_recv, p_scan, block_size, MPI_INT, MPI_SUM,
-				MPI_COMM_WORLD) == MPI_SUCCESS);
+						MPI_COMM_WORLD) == MPI_SUCCESS);
 		assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
 
 		assert(MPI_Gather(p_scan, block_size, MPI_INT, p_gather, block_size,
-				MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
+						MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
 		assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
 
 		for (i = j; i < (j + total); i++) {
@@ -97,13 +106,21 @@ int main(int argc, char **argv) {
 		for (i = (j + 1); i < count; i++) {
 			send_list[i] = send_list[i - 1] + send_list[i];
 		}
+#else
+	if (me == ROOT) {
+		for (i = 1; i < count; i++) {
+			send_list[i] = send_list[i - 1] + send_list[i];
+		}
+#endif
+#ifdef DEBUG
 		for (i = 0; i < count; i++) {
 			printf("%i\t->\t%i\n", i, send_list[i]);
 		}
+#endif
 	}
 
 	j = 0;
-	long sum = 0;
+	float sum = 0;
 	while (j < (count - total)) {
 		int *p_send = &send_list[j];
 		int *p_recv = &recv_list[0];
@@ -115,15 +132,20 @@ int main(int argc, char **argv) {
 		assert(MPI_Reduce(p_recv, p_reduce, block_size, MPI_INT, MPI_SUM, ROOT,
 				MPI_COMM_WORLD) == MPI_SUCCESS);
 
-		sum += scan_list[0];
+		sum += (float) scan_list[0];
 		j += total;
 	}
 
-	if(me == ROOT) {
-		for(i = j; i < count; i++) {
-			sum += send_list[i];
+	if (me == ROOT) {
+		for (i = j; i < count; i++) {
+			sum += (float) send_list[i];
 		}
-		printf("macht gesamt: %i\n", sum);
+
+		end = MPI_Wtime();
+
+		printf("macht gesamt: %f\n", sum);
+		printf("zeit gemessen: %f sekunden\n", (end - start));
+
 	}
 
 	/* MPI Laufzeitsystem beenden */
