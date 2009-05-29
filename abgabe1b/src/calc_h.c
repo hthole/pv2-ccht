@@ -28,7 +28,7 @@ void print_debug(int[], int);
 
 int main(int argc, char **argv) {
 	/* Deklarationen fuer parallel kram */
-	int me, total, tag = 99;
+	int me, total, tag = 99, l, k;
 	int sum = 0;
 	MPI_Status status;
 	MPI_Request request;
@@ -70,7 +70,6 @@ int main(int argc, char **argv) {
 		read_file(send_list, elements, argv[2]);
 		print_debug(send_list, elements);
 
-		int k;
 		for (k = 0; k < total; k++) {
 			MPI_Isend(send_list, elements, MPI_INT, k, 99, MPI_COMM_WORLD,
 					&request);
@@ -81,7 +80,6 @@ int main(int argc, char **argv) {
 	MPI_Irecv(recv_list, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request);
 	MPI_Wait(&request, &status);
 
-	int l;
 	int end = (chunk_size * me) + chunk_size;
 	int start = chunk_size * me;
 
@@ -104,10 +102,29 @@ int main(int argc, char **argv) {
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
+	if (me != ROOT) {
+		MPI_Send(recv_list, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD);
+	} else {
+		for(k = 1; k < total; k++) {
+			int tmp[elements];
+
+			MPI_Recv(tmp, elements, MPI_INT, k, 99, MPI_COMM_WORLD, &status);
+			end = (chunk_size * k) + chunk_size;
+			start = chunk_size * k;
+
+			for(l = start; l < end; l++) {
+				send_list[l] = tmp[l];
+			}
+		}
+
+	}
+
+
+
 	if (me == ROOT) {
 		// debug ausgabe des ersten teils
-		// printf("\n----------\n\n");
-		// print_debug(recv_list, elements);
+		printf("\n----------\n\n");
+		 print_debug(send_list, elements);
 
 		printf("macht gesamt: %i\n", sum);
 	}
