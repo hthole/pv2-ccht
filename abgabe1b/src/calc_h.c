@@ -70,10 +70,13 @@ int main(int argc, char **argv) {
 		int chunk_size = elements / total;
 
 		int k;
-		for (k = 0; k < total; k++) {
-			MPI_Isend(*(send_list+(chunk_size*k)), chunk_size, MPI_INT, k, 99, MPI_COMM_WORLD, &request);
+		for (k = 1; k < total; k++) {
+			int *p_send = &send_list[elements+(chunk_size*k)];
+			MPI_Isend(p_send, chunk_size, MPI_INT, k, 99, MPI_COMM_WORLD, &request);
 			MPI_Wait(&request, &status);
 		}
+	} else {
+		MPI_Irecv(TRALALA!!!, chunk_size, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request);
 	}
 
 
