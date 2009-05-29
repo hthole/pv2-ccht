@@ -62,22 +62,31 @@ int main(int argc, char **argv) {
 //	int gather_list[elements];
 //	int block_size = 1;
 
+	// array aufteilen
+	int chunk_size = elements / (total-1);
+
 	if (me == ROOT) {
 		read_file(send_list, elements, argv[2]);
 		print_debug(send_list, elements);
 
-		// array aufteilen
-		int chunk_size = elements / total;
-
 		int k;
 		for (k = 1; k < total; k++) {
-			int *p_send = &send_list[elements+(chunk_size*k)];
+			int *p_send = &send_list[elements+(chunk_size*k-1)];
 			MPI_Isend(p_send, chunk_size, MPI_INT, k, 99, MPI_COMM_WORLD, &request);
 			MPI_Wait(&request, &status);
 		}
 	} else {
-		MPI_Irecv(TRALALA!!!, chunk_size, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request);
+		int *p_recv = &recv_list[elements+(chunk_size*me-1)];
+		MPI_Irecv(p_recv, chunk_size, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request);
+		MPI_Wait(&request, &status);
+
+		int l;
+		for (l = 0; l < chunk_size; l++) {
+			// hier für den rechner aufaddieren
+		}
 	}
+
+	printf("Hallo!\n");
 
 
 
