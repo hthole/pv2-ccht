@@ -70,21 +70,21 @@ int main(int argc, char **argv) {
 		print_debug(send_list, elements);
 
 		int k;
-		for (k = 1; k < total; k++) {
+		for (k = 0; k < total; k++) {
 			int *p_send = &send_list[elements];
 			MPI_Isend(p_send, elements, MPI_INT, k, 99, MPI_COMM_WORLD, &request);
 			MPI_Wait(&request, &status);
 		}
-	} else {
-		int *p_recv = &recv_list[elements];
-		MPI_Irecv(p_recv, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request);
-		MPI_Wait(&request, &status);
+	}
 
-		int l;
-		int start = chunk_size * (me - 1);
-		for (l = start; l < chunk_size + start; l++) {
-			// hier für den rechner aufaddieren
-		}
+	int *p_recv = &recv_list[elements];
+	MPI_Irecv(p_recv, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request);
+	MPI_Wait(&request, &status);
+
+	int l;
+	int start = chunk_size * me;
+	for (l = start; l < chunk_size + start; l++) {
+		// hier für den rechner aufaddieren
 	}
 
 	printf("Hallo!\n");
