@@ -112,6 +112,10 @@ int main(int argc, char **argv) {
 			end = (chunk_size * k) + chunk_size;
 			start = chunk_size * k;
 
+			if (k == (total - 1)) {
+				end += offset;
+			}
+
 			for(l = start; l < end; l++) {
 				send_list[l] = tmp[l];
 			}
