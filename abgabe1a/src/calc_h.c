@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
 				end += offset;
 			}
 
-			for(l = start; l < tmp_end; l++) {
+			for(l = start; l < end; l++) {
 				recv_list[l] = tmp[l];
 			}
 		}
@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
 
 	float my_sum = 0.0;
 	for (l = 0; l < chunk_size; l++) {
-		my_sum += (float) tmp_chunk[l];
+		my_sum += tmp_chunk[l];
 	}
 
 	//MPI_Barrier(MPI_COMM_WORLD);
