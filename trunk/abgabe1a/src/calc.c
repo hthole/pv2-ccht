@@ -42,8 +42,8 @@ int main(int argc, char **argv) {
 	}
 
 	if (argc != 3) {
-		printf("usage: ./search <size> <filename>\n");
-		return 1;
+		printf("usage: ./%s <size> <filename>\n", argv[0]);
+		exit(1);
 	}
 
 	/* Wer bin ich? */
