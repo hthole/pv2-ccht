@@ -32,6 +32,7 @@ int main(int argc, char **argv[]) {
 	int was_found;
 	int stop = 1337;
 	int i;
+	double start, end;
 
 	/* Initialisierung */
 	if (MPI_Init(&argc, &argv) != MPI_SUCCESS) {
@@ -41,7 +42,7 @@ int main(int argc, char **argv[]) {
 
 	if (argc != 3) {
 		printf("usage: ./search <size> <search for>\n");
-		return 1;
+		exit(1);
 	}
 
 	/* konvertiere die uebergabe parameter von char zu int	*/
@@ -58,6 +59,10 @@ int main(int argc, char **argv[]) {
 
 	/* Wieviele von uns gibt es? */
 	assert(MPI_Comm_size(MPI_COMM_WORLD, &total) == MPI_SUCCESS);
+
+	if (me == ROOT) {
+		start = MPI_Wtime();
+	}
 
 	p_buf_size = buf_size / total;
 	int recvbuf[p_buf_size];
@@ -98,8 +103,16 @@ int main(int argc, char **argv[]) {
 		assert(MPI_Test(&request, &was_found, &status) == MPI_SUCCESS);
 	}
 
+	if (me == ROOT) {
+		end = MPI_Wtime();
+	}
+
 	printf("prozess %i bei position %i gestoppt.\n", me, ((i - 1) + me
 			* p_buf_size));
+
+	if (me == ROOT) {
+		printf("\nZeit gemessen: %f Sekunden\n", (end - start));
+	}
 
 	/* MPI Laufzeitsystem beenden */
 	assert(MPI_Finalize() == MPI_SUCCESS);

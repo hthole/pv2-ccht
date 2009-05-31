@@ -144,7 +144,7 @@ int main(int argc, char **argv) {
 		end = MPI_Wtime();
 
 		printf("macht gesamt: %f\n", sum);
-		printf("zeit gemessen: %f sekunden\n", (end - start));
+		printf("\nZeit gemessen: %f Sekunden\n", (end - start));
 
 	}
 
@@ -175,7 +175,7 @@ void read_file(int list[], int count, char *filename) {
 			z = strtok(line, TOKEN);
 
 			while (z != NULL && cols < count) {
-				// fŸr jede spalte (zahl) in der zeile
+				// fï¿½r jede spalte (zahl) in der zeile
 				list[cols] = atoi(z);
 				z = strtok(NULL, TOKEN);
 				cols++;
