@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
 	if (me != ROOT) {
 		MPI_Send(recv_list, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD);
 	} else {
+		int tmp_end = 0;
 		for(k = 1; k < total; k++) {
 			int tmp[elements];
 
@@ -113,10 +114,12 @@ int main(int argc, char **argv) {
 			end = start + chunk_size;
 
 			if (k == (total - 1)) {
-				end += offset;
+				tmp_end = end + offset;
+			} else {
+				tmp_end = end;
 			}
 
-			for(l = start; l < end; l++) {
+			for(l = start; l < tmp_end; l++) {
 				recv_list[l] = tmp[l];
 			}
 		}
