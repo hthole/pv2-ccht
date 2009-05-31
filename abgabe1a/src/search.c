@@ -41,7 +41,7 @@ int main(int argc, char **argv[]) {
 	}
 
 	if (argc != 3) {
-		printf("usage: ./search <size> <search for>\n");
+		printf("usage: ./%s <size> <search for>\n", argv[0]);
 		exit(1);
 	}
 
