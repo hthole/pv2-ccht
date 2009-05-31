@@ -85,15 +85,15 @@ int main(int argc, char **argv) {
 
 		assert(MPI_Scatter(p_send, block_size, MPI_INT, p_recv, block_size,
 						MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
-		assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
+		//assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
 
 		assert(MPI_Scan(p_recv, p_scan, block_size, MPI_INT, MPI_SUM,
 						MPI_COMM_WORLD) == MPI_SUCCESS);
-		assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
+		//assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
 
 		assert(MPI_Gather(p_scan, block_size, MPI_INT, p_gather, block_size,
 						MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
-		assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
+		//assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
 
 		for (i = j; i < (j + total); i++) {
 			send_list[i] = gather_list[i];
@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
 
 	if (me == ROOT) {
 		for (i = (j + 1); i < count; i++) {
-			send_list[i] = send_list[i - 1] + send_list[i];
+			send_list[i] += send_list[i - 1];
 		}
 #else
 	if (me == ROOT) {
@@ -167,21 +167,22 @@ void read_file(int list[], int count, char *filename) {
 
 	file = fopen(abs_filename, "r");
 
-	if (file == NULL)
+	if (file == NULL) {
 		printf("Datei %s konnte nicht geoeffnet werden.\n", abs_filename);
-	else {
+	} else {
 		while (fgets(line, sizeof(line), file) != NULL) {
 			// fuer jede zeile
 			z = strtok(line, TOKEN);
 
 			while (z != NULL && cols < count) {
-				// f�r jede spalte (zahl) in der zeile
+				// fuer jede spalte (zahl) in der zeile
 				list[cols] = atoi(z);
 				z = strtok(NULL, TOKEN);
 				cols++;
 			}
 		}
 	}
+	free(abs_filename);
 
 	fclose(file);
 }
