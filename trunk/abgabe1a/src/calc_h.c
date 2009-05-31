@@ -63,6 +63,7 @@ int main(int argc, char **argv) {
 	// array aufteilen
 	int chunk_size = elements / total;
 	int offset = elements % total;
+	printf("offset: %i\n", offset);
 
 	if (me == ROOT) {
 		read_file(send_list, elements, argv[2]);
@@ -133,15 +134,18 @@ int main(int argc, char **argv) {
 
 	// zu berechnende teilstücke an slaves senden
 	if (me == ROOT) {
+		int this_chunk = chunk_size;
 		for (l = 0; l < total; l++) {
 			start = chunk_size * l;
 
 			if (l == (total - 1)) {
-				chunk_size += offset;
+				this_chunk = chunk_size + offset;
+			} else {
+				this_chunk = chunk_size;
 			}
 
 			int *p_send = &recv_list[start];
-			MPI_Isend(p_send, chunk_size, MPI_INT, l, 4711, MPI_COMM_WORLD, &request);
+			MPI_Isend(p_send, this_chunk, MPI_INT, l, 4711, MPI_COMM_WORLD, &request);
 		}
 	}
 
