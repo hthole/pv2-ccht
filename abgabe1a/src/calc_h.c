@@ -21,7 +21,7 @@
 #define FILE_MODE	"r"
 #define TOKEN 		" "
 #define BUF_SIZE	500000
-#define PVERS       1
+//#define PVERS       1
 
 void read_file(int[], int, char[]);
 void print_debug(int[], int);
@@ -32,6 +32,7 @@ int main(int argc, char **argv) {
 	int sum = 0;
 	MPI_Status status;
 	MPI_Request request;
+	double start_time, end_time;
 
 	/* Initialisierung */
 	if (MPI_Init(&argc, &argv) != MPI_SUCCESS) {
@@ -40,8 +41,8 @@ int main(int argc, char **argv) {
 	}
 
 	if (argc != 3) {
-		printf("usage: ./calc <size> <filename>\n");
-		return 1;
+		printf("usage: ./%s <size> <filename>\n", argv[0]);
+		exit(1);
 	}
 
 	/* Wer bin ich? */
@@ -58,9 +59,6 @@ int main(int argc, char **argv) {
 	int elements = atoi(argv[1]);
 	int send_list[elements];
 	int recv_list[elements];
-	//	int scan_list[elements];
-	//	int gather_list[elements];
-	//	int block_size = 1;
 
 	// array aufteilen
 	int chunk_size = elements / total;
@@ -69,6 +67,8 @@ int main(int argc, char **argv) {
 	if (me == ROOT) {
 		read_file(send_list, elements, argv[2]);
 		//print_debug(send_list, elements);
+
+		start_time = MPI_Wtime();
 
 		for (k = 0; k < total; k++) {
 			MPI_Isend(send_list, elements, MPI_INT, k, 99, MPI_COMM_WORLD,
@@ -80,8 +80,9 @@ int main(int argc, char **argv) {
 	MPI_Irecv(recv_list, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request);
 	MPI_Wait(&request, &status);
 
-	int end = (chunk_size * me) + chunk_size;
 	int start = chunk_size * me;
+	int end = start + chunk_size;
+
 
 	if (me == (total - 1)) {
 		end += offset;
@@ -98,48 +99,85 @@ int main(int argc, char **argv) {
 		recv_list[l + 1] += recv_list[l];
 	}
 
-	//printf("Hallo!\n");
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (me != ROOT) {
 		MPI_Send(recv_list, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD);
 	} else {
-		for(l = 0; l < chunk_size; l++) {
-			send_list[l] = recv_list[l];
-		}
-
 		for(k = 1; k < total; k++) {
 			int tmp[elements];
-			end = (chunk_size * k) + chunk_size;
-			start = chunk_size * k;
 
 			MPI_Recv(tmp, elements, MPI_INT, k, 99, MPI_COMM_WORLD, &status);
+			start = chunk_size * k;
+			end = start + chunk_size;
 
 			if (k == (total - 1)) {
 				end += offset;
 			}
 
 			for(l = start; l < end; l++) {
-				send_list[l] = tmp[l];
+				recv_list[l] = tmp[l];
 			}
 		}
+	}
 
+	// zwischenergebnis (evtl mit falschem ersten chunk)
+//	if (me == ROOT) {
+//		// debug ausgabe des ersten teils
+//		printf("\n----------\n\n");
+//		 print_debug(recv_list, elements);
+//	}
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	// zu berechnende teilstücke an slaves senden
+	if (me == ROOT) {
+		for (l = 0; l < total; l++) {
+			start = chunk_size * l;
+
+			if (l == (total - 1)) {
+				chunk_size += offset;
+			}
+
+			int *p_send = &recv_list[start];
+			MPI_Isend(p_send, chunk_size, MPI_INT, l, 4711, MPI_COMM_WORLD, &request);
+		}
+	}
+
+	// zu berechnende Stücke empfangen
+	if (me == (total - 1)) {
+		chunk_size += offset;
+	}
+	int tmp_chunk[chunk_size];
+	MPI_Irecv(tmp_chunk, chunk_size, MPI_INT, ROOT, 4711, MPI_COMM_WORLD, &request);
+	MPI_Wait(&request, &status);
+
+
+	float my_sum = 0.0;
+	for (l = 0; l < chunk_size; l++) {
+		my_sum += (float) tmp_chunk[l];
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
-	if (me == ROOT) {
-		// debug ausgabe des ersten teils
-		// printf("\n----------\n\n");
-		// print_debug(send_list, elements);
+	// ergebnis zurückschicken an Master
+	if (me != ROOT) {
+		MPI_Send(&my_sum, 1, MPI_FLOAT, ROOT, 815, MPI_COMM_WORLD);
+	}
 
-		sum = 0;
-		for(l = 0; l < elements; l++) {
-			sum += send_list[l];
+	// ergebnis empfangen, berechnen und anzeigen
+	if (me == ROOT) {
+		float the_sum = 0.0;
+		for (l = 1; l < total; l++) {
+			MPI_Recv(&the_sum, 1, MPI_FLOAT, l, 815, MPI_COMM_WORLD, &status);
+			my_sum += the_sum;
 		}
 
-		printf("macht gesamt: %i\n", sum);
+		end_time = MPI_Wtime();
+
+		printf("macht gesamt: %f\n", my_sum);
+		printf("\nZeit gemessen: %f Sekunden\n", (end_time - start_time));
 	}
 
 	/* MPI Laufzeitsystem beenden */
@@ -152,14 +190,14 @@ void read_file(int list[], int count, char *filename) {
 	FILE *file;
 	char line[BUF_SIZE];
 	char *z;
-	char *abs_filename = (char *) malloc(strlen(filename) + strlen(FILE_PATH)
-			+ 1);
+	char *abs_filename = (char *) malloc(strlen(filename) + strlen(FILE_PATH) + 1);
 	long cols = 0;
 
 	strcpy(abs_filename, FILE_PATH);
 	strcat(abs_filename, filename);
 
 	file = fopen(abs_filename, "r");
+	free(abs_filename);
 
 	if (file == NULL)
 		printf("Datei %s konnte nicht geoeffnet werden.\n", abs_filename);
