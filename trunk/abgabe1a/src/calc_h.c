@@ -63,7 +63,6 @@ int main(int argc, char **argv) {
 	// array aufteilen
 	int chunk_size = elements / total;
 	int offset = elements % total;
-	printf("offset: %i\n", offset);
 
 	if (me == ROOT) {
 		read_file(send_list, elements, argv[2]);
@@ -101,7 +100,7 @@ int main(int argc, char **argv) {
 	}
 
 
-	MPI_Barrier(MPI_COMM_WORLD);
+	//MPI_Barrier(MPI_COMM_WORLD);
 
 	if (me != ROOT) {
 		MPI_Send(recv_list, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD);
@@ -130,7 +129,7 @@ int main(int argc, char **argv) {
 //		 print_debug(recv_list, elements);
 //	}
 
-	MPI_Barrier(MPI_COMM_WORLD);
+	//MPI_Barrier(MPI_COMM_WORLD);
 
 	// zu berechnende teilstücke an slaves senden
 	if (me == ROOT) {
@@ -163,7 +162,7 @@ int main(int argc, char **argv) {
 		my_sum += (float) tmp_chunk[l];
 	}
 
-	MPI_Barrier(MPI_COMM_WORLD);
+	//MPI_Barrier(MPI_COMM_WORLD);
 
 	// ergebnis zurückschicken an Master
 	if (me != ROOT) {
@@ -189,6 +188,8 @@ int main(int argc, char **argv) {
 
 	return 0;
 }
+
+
 
 void read_file(int list[], int count, char *filename) {
 	FILE *file;
