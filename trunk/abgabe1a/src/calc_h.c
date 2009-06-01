@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
 	printf("Hier meldet sich Prozess: %i\n", me);
 
 	/* warten, bis alle sich gemeldet haben */
-	MPI_Barrier(MPI_COMM_WORLD);
+	assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
 
 	/* Wieviele von uns gibt es? */
 	assert(MPI_Comm_size(MPI_COMM_WORLD, &total) == MPI_SUCCESS);
@@ -76,14 +76,14 @@ int main(int argc, char **argv) {
 		start_time = MPI_Wtime();
 
 		for (k = 0; k < total; k++) {
-			MPI_Isend(send_list, elements, MPI_INT, k, 99, MPI_COMM_WORLD,
-					&request);
+			assert(MPI_Isend(send_list, elements, MPI_INT, k, 99, MPI_COMM_WORLD,
+					&request) == MPI_SUCCESS);
 		}
 	}
 
 	/* Slaves empfangen die Arrays */
-	MPI_Irecv(recv_list, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request);
-	MPI_Wait(&request, &status);
+	assert(MPI_Irecv(recv_list, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request) == MPI_SUCCESS);
+	assert(MPI_Wait(&request, &status) == MPI_SUCCESS);
 
 	/* Slave berechnet den Start- und Endpunkt seiner Berechnung */
 	int start = chunk_size * me;
@@ -118,7 +118,8 @@ int main(int argc, char **argv) {
 		for(k = 1; k < total; k++) {
 			int tmp[elements];
 
-			MPI_Recv(tmp, elements, MPI_INT, k, 99, MPI_COMM_WORLD, &status);
+			/* Master empfaengt von jedem Slave das Ergebnisarray */
+			assert(MPI_Recv(tmp, elements, MPI_INT, k, 99, MPI_COMM_WORLD, &status) == MPI_SUCCESS);
 			start = chunk_size * k;
 			end = start + chunk_size;
 
@@ -126,6 +127,7 @@ int main(int argc, char **argv) {
 				end += offset;
 			}
 
+			/* Master kopiert das Ergebnisarray eines jeden Slaves zu seinem eigenen */
 			for(l = start; l < end; l++) {
 				recv_list[l] = tmp[l];
 			}
@@ -146,7 +148,7 @@ int main(int argc, char **argv) {
 			}
 
 			int *p_send = &recv_list[start];
-			MPI_Isend(p_send, this_chunk, MPI_INT, l, 4711, MPI_COMM_WORLD, &request);
+			assert(MPI_Isend(p_send, this_chunk, MPI_INT, l, 4711, MPI_COMM_WORLD, &request) == MPI_SUCCESS);
 		}
 	}
 
@@ -155,8 +157,8 @@ int main(int argc, char **argv) {
 		chunk_size += offset;
 	}
 	int tmp_chunk[chunk_size];
-	MPI_Irecv(tmp_chunk, chunk_size, MPI_INT, ROOT, 4711, MPI_COMM_WORLD, &request);
-	MPI_Wait(&request, &status);
+	assert(MPI_Irecv(tmp_chunk, chunk_size, MPI_INT, ROOT, 4711, MPI_COMM_WORLD, &request) == MPI_SUCCESS);
+	assert(MPI_Wait(&request, &status) == MPI_SUCCESS);
 
 
 	/* Slaves addieren Felder auf */
@@ -168,14 +170,14 @@ int main(int argc, char **argv) {
 
 	/* Slaves schicken Summe zurueck an den Master */
 	if (me != ROOT) {
-		MPI_Send(&my_sum, 1, MPI_FLOAT, ROOT, 815, MPI_COMM_WORLD);
+		assert(MPI_Send(&my_sum, 1, MPI_FLOAT, ROOT, 815, MPI_COMM_WORLD) == MPI_SUCCESS);
 	}
 
 	/* Master empfaengt Ergenisse, summiert diese auf und zeigt Gesamtsumme an */
 	if (me == ROOT) {
 		float the_sum = 0.0;
 		for (l = 1; l < total; l++) {
-			MPI_Recv(&the_sum, 1, MPI_FLOAT, l, 815, MPI_COMM_WORLD, &status);
+			assert(MPI_Recv(&the_sum, 1, MPI_FLOAT, l, 815, MPI_COMM_WORLD, &status) == MPI_SUCCESS);
 			my_sum += the_sum;
 		}
 

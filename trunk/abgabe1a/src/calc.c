@@ -1,8 +1,6 @@
 /*
- * search.c
  *
- *  Created on: 19.05.2009
- *      Author: hendrik, christian
+ *      Author: C. Claus, H. Thole
  */
 
 #include <stdio.h>
@@ -51,7 +49,7 @@ int main(int argc, char **argv) {
 	printf("Hier meldet sich Prozess: %i\n", me);
 
 	/* warten, bis alle sich gemeldet haben */
-	MPI_Barrier(MPI_COMM_WORLD);
+	assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
 
 	/* Wieviele von uns gibt es? */
 	assert(MPI_Comm_size(MPI_COMM_WORLD, &total) == MPI_SUCCESS);

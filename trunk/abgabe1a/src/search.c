@@ -1,8 +1,6 @@
 /*
- * search.c
  *
- *  Created on: 19.05.2009
- *      Author: hendrik, christian
+ *      Author: C. Claus, H. Thole
  */
 
 #include <stdio.h>
@@ -20,7 +18,7 @@
 
 int get_random_number(int);
 
-int main(int argc, char **argv[]) {
+int main(int argc, char **argv) {
 
 	/* Deklarationen fuer parallel kram */
 	int me, total, count, tag = 99;
@@ -55,7 +53,7 @@ int main(int argc, char **argv[]) {
 	printf("Hier meldet sich Prozess: %i\n", me);
 
 	/* warten, bis alle sich gemeldet haben */
-	MPI_Barrier(MPI_COMM_WORLD);
+	assert(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
 
 	/* Wieviele von uns gibt es? */
 	assert(MPI_Comm_size(MPI_COMM_WORLD, &total) == MPI_SUCCESS);
@@ -76,23 +74,28 @@ int main(int argc, char **argv[]) {
 		sendbuf[rand] = search_for;
 	}
 
+	/* Verteile das Sucharray gleichermassen an alle Prozesse */
 	assert(MPI_Scatter(sendbuf, p_buf_size, MPI_INT, recvbuf, p_buf_size,
 			MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
 
+	/* Jeder Prozess startet im Hintergrund ein Receive mit einer request Referenz */
 	assert(MPI_Irecv(&stop, 1, MPI_INT, MPI_ANY_SOURCE, tag, MPI_COMM_WORLD,
 			&request) == MPI_SUCCESS);
 
+	/* Jeder Prozess testet, ob in was_found 1 (true) steht */
 	assert(MPI_Test(&request, &was_found, &status) == MPI_SUCCESS);
 
 	printf("%i buf size %i\n", me, p_buf_size);
-	for (i = 0; !was_found && i < p_buf_size; i++) {
-		// printf("%i.\t%i\t->\t%i\t%i\n", me, i, recvbuf[i], was_found);
 
+	/* Jeder Prozess iteriert, suchend, ueber sein receive Array */
+	for (i = 0; !was_found && i < p_buf_size; i++) {
+		/* falls Suche erfolgreich */
 		if (recvbuf[i] == search_for) {
 			printf("gefunden an position: %i, von prozess: %i\n", (i + me
 					* p_buf_size), me);
 
 			int j;
+			/* schicke an alle Prozesse die Nachricht, dass die Suche erfolgreich war */
 			for (j = 0; j < total; j++) {
 				stop = j;
 				assert(MPI_Send(&stop, 1, MPI_INT, j, tag, MPI_COMM_WORLD)
@@ -100,6 +103,7 @@ int main(int argc, char **argv[]) {
 			}
 		}
 
+		/* Testen (nachfragen), ob was_found auf 1 gesetzt wurde */
 		assert(MPI_Test(&request, &was_found, &status) == MPI_SUCCESS);
 	}
 
