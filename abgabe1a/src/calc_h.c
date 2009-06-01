@@ -1,6 +1,15 @@
 /*
  *
  *      Author: C. Claus, H. Thole
+ *
+ *      Kompilieren mit:
+ *      mpicc -o calc calc_h.c
+ *
+ *      Ausführen mit:
+ *      mpiexec -n 2 calc 10 10
+ *
+ *      Die einzulesenden Dateien muessen sich in "../resources/" befinden.
+ *
  */
 
 #include <stdio.h>

@@ -1,6 +1,12 @@
 /*
  *
  *      Author: C. Claus, H. Thole
+ *
+ *      Kompilieren mit:
+ *      mpicc -o search search.c
+ *
+ *      Ausführen mit:
+ *      mpiexec -n 2 search 100 42
  */
 
 #include <stdio.h>
