@@ -55,21 +55,23 @@ int main(int argc, char **argv) {
 	assert(MPI_Comm_size(MPI_COMM_WORLD, &total) == MPI_SUCCESS);
 
 	// konvertiere die Uebergabeparameter von char zu int
-	int count = atoi(argv[1]);
+	int elements = atoi(argv[1]);
 
 	/*  Sende- und Empfangsarrays etc. einrichten */
-	int send_list[count];
-	int recv_list[count];
-	int scan_list[count];
-	int gather_list[count];
+	int send_list[elements];
+	int recv_list[elements];
+	int scan_list[elements];
+	int gather_list[elements];
+
 	int block_size = 1;
+
 
 	if (me == ROOT) {
 		/* Datei einlesen */
-		read_file(send_list, count, argv[2]);
+		read_file(send_list, elements, argv[2]);
 
 #ifdef DEBUG
-		print_debug(send_list, count);
+		print_debug(send_list, elements);
 #endif
 
 	}
@@ -78,7 +80,7 @@ int main(int argc, char **argv) {
 
 	int j = 0;
 #ifdef PARALLEL
-	while (j < (count - total)) {
+	while (j < (elements - total)) {
 		int *p_send = &send_list[j];
 		int *p_recv = &recv_list[0];
 		int *p_scan = &scan_list[0];
@@ -96,6 +98,7 @@ int main(int argc, char **argv) {
 		assert(MPI_Gather(p_scan, block_size, MPI_INT, p_gather, block_size,
 						MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
 
+		/* (Teil-)Ergebnisse zurueckschreiben */
 		for (i = j; i < (j + total); i++) {
 			send_list[i] = gather_list[i];
 		}
@@ -104,17 +107,18 @@ int main(int argc, char **argv) {
 	}
 
 	if (me == ROOT) {
-		for (i = (j + 1); i < count; i++) {
+		/* eventuellen 'Rest' (Offset) aufaddieren */
+		for (i = (j + 1); i < elements; i++) {
 			send_list[i] += send_list[i - 1];
 		}
 #else
 	if (me == ROOT) {
-		for (i = 1; i < count; i++) {
+		for (i = 1; i < elements; i++) {
 			send_list[i] = send_list[i - 1] + send_list[i];
 		}
 #endif
 #ifdef DEBUG
-		for (i = 0; i < count; i++) {
+		for (i = 0; i < elements; i++) {
 			printf("%i\t->\t%i\n", i, send_list[i]);
 		}
 #endif
@@ -122,26 +126,31 @@ int main(int argc, char **argv) {
 
 	j = 0;
 	float sum = 0;
-	while (j < (count - total)) {
+	while (j < (elements - total)) {
 		int *p_send = &send_list[j];
 		int *p_recv = &recv_list[0];
 		int *p_reduce = &scan_list[0];
 
+		/* Teilsummen an Prozesse schicken */
 		assert(MPI_Scatter(p_send, block_size, MPI_INT, p_recv, block_size,
 				MPI_INT, ROOT, MPI_COMM_WORLD) == MPI_SUCCESS);
 
+		/* Summe empfangen ... */
 		assert(MPI_Reduce(p_recv, p_reduce, block_size, MPI_INT, MPI_SUM, ROOT,
 				MPI_COMM_WORLD) == MPI_SUCCESS);
 
+		/* ... und auf Gesamtsumme addieren */
 		sum += (float) scan_list[0];
 		j += total;
 	}
 
 	if (me == ROOT) {
-		for (i = j; i < count; i++) {
+		/* eventuellen Rest auf Gesamtsumme addieren */
+		for (i = j; i < elements; i++) {
 			sum += (float) send_list[i];
 		}
 
+		/* Zeit stoppen */
 		end_time = MPI_Wtime();
 
 		printf("macht gesamt: %f\n", sum);
