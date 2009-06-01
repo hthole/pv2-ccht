@@ -1,8 +1,6 @@
 /*
- * search.c
  *
- *  Created on: 19.05.2009
- *      Author: hendrik, christian
+ *      Author: C. Claus, H. Thole
  */
 
 #include <stdio.h>
@@ -21,25 +19,25 @@
 #define FILE_MODE	"r"
 #define TOKEN 		" "
 #define BUF_SIZE	500000
-//#define PVERS       1
 
 void read_file(int[], int, char[]);
 void print_debug(int[], int);
 
 int main(int argc, char **argv) {
-	/* Deklarationen fuer parallel kram */
+	/* spaeter gebrauchte Variablen deklarieren */
 	int me, total, tag = 99, l, k;
 	int sum = 0;
 	MPI_Status status;
 	MPI_Request request;
-	double start_time, end_time;
+	double start_time, end_time; // fuer Zeitnahme
 
-	/* Initialisierung */
+	/* MPI-Initialisierung */
 	if (MPI_Init(&argc, &argv) != MPI_SUCCESS) {
 		printf("Konnte MPI nicht initialisieren, verlasse Programm...\n");
 		exit(1);
 	}
 
+	/* Parameteranzahl pruefen */
 	if (argc != 3) {
 		printf("usage: ./%s <size> <filename>\n", argv[0]);
 		exit(1);
@@ -55,15 +53,22 @@ int main(int argc, char **argv) {
 	/* Wieviele von uns gibt es? */
 	assert(MPI_Comm_size(MPI_COMM_WORLD, &total) == MPI_SUCCESS);
 
-	// konvertiere die uebergabe parameter von char zu int
+	/* konvertiere die Uebergabeparameter von char zu int */
 	int elements = atoi(argv[1]);
+
+	/*  Sende- und Empfangsarray einrichten */
 	int send_list[elements];
 	int recv_list[elements];
 
-	// array aufteilen
+	/* Groesse des Abschnitts bestimmen und evtl Offset berechnen, falls nicht
+	 * glatt geteilt werden kann
+     */
 	int chunk_size = elements / total;
 	int offset = elements % total;
 
+	/* Master liest Datei ein, startet die Zeitnahme und sendet alle Zahlen an
+	 * jeden Slave
+	 */
 	if (me == ROOT) {
 		read_file(send_list, elements, argv[2]);
 		//print_debug(send_list, elements);
@@ -75,19 +80,21 @@ int main(int argc, char **argv) {
 					&request);
 		}
 	}
-	//printf("hier ist %i\n", me);
 
+	/* Slaves empfangen die Arrays */
 	MPI_Irecv(recv_list, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD, &request);
 	MPI_Wait(&request, &status);
 
+	/* Slave berechnet den Start- und Endpunkt seiner Berechnung */
 	int start = chunk_size * me;
 	int end = start + chunk_size;
 
-
+	/* Der 'letzte' Slave muss den Offset beruecksichtigen */
 	if (me == (total - 1)) {
 		end += offset;
 	}
 
+	/* Slave berechnet Startwert */
 	int p_sum = 0;
 	for (l = 0; l <= start; l++) {
 		p_sum += recv_list[l];
@@ -95,16 +102,19 @@ int main(int argc, char **argv) {
 
 	recv_list[start] = p_sum;
 
+	/* Slave berechnet einzelne Summen seine Teilstuecks */
 	for (l = start; l < end - 1; l++) {
 		recv_list[l + 1] += recv_list[l];
 	}
 
 
-	//MPI_Barrier(MPI_COMM_WORLD);
 
 	if (me != ROOT) {
+		/* Slaves schicken Ergebnisarrays zurueck */
 		MPI_Send(recv_list, elements, MPI_INT, ROOT, 99, MPI_COMM_WORLD);
 	} else {
+		/* Ergenisarrays werden angenommen und die jeweils berechneten Teilstuecke
+		 * in einem Array zusammengefasst */
 		for(k = 1; k < total; k++) {
 			int tmp[elements];
 
@@ -122,16 +132,8 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	// zwischenergebnis (evtl mit falschem ersten chunk)
-//	if (me == ROOT) {
-//		// debug ausgabe des ersten teils
-//		printf("\n----------\n\n");
-//		 print_debug(recv_list, elements);
-//	}
 
-	//MPI_Barrier(MPI_COMM_WORLD);
-
-	// zu berechnende teilstücke an slaves senden
+	/* Master schickt Teilstuecke des Ergebnisarrays zurueck an Slaves */
 	if (me == ROOT) {
 		int this_chunk = chunk_size;
 		for (l = 0; l < total; l++) {
@@ -148,7 +150,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	// zu berechnende Stücke empfangen
+	/* Slaves empfangen ihre Teilstuecke */
 	if (me == (total - 1)) {
 		chunk_size += offset;
 	}
@@ -157,19 +159,19 @@ int main(int argc, char **argv) {
 	MPI_Wait(&request, &status);
 
 
+	/* Slaves addieren Felder auf */
 	float my_sum = 0.0;
 	for (l = 0; l < chunk_size; l++) {
 		my_sum += tmp_chunk[l];
 	}
 
-	//MPI_Barrier(MPI_COMM_WORLD);
 
-	// ergebnis zurückschicken an Master
+	/* Slaves schicken Summe zurueck an den Master */
 	if (me != ROOT) {
 		MPI_Send(&my_sum, 1, MPI_FLOAT, ROOT, 815, MPI_COMM_WORLD);
 	}
 
-	// ergebnis empfangen, berechnen und anzeigen
+	/* Master empfaengt Ergenisse, summiert diese auf und zeigt Gesamtsumme an */
 	if (me == ROOT) {
 		float the_sum = 0.0;
 		for (l = 1; l < total; l++) {
@@ -183,7 +185,7 @@ int main(int argc, char **argv) {
 		printf("\nZeit gemessen: %f Sekunden\n", (end_time - start_time));
 	}
 
-	/* MPI Laufzeitsystem beenden */
+	/* MPI-Laufzeitsystem beenden */
 	assert(MPI_Finalize() == MPI_SUCCESS);
 
 	return 0;
@@ -202,11 +204,10 @@ void read_file(int list[], int count, char *filename) {
 	strcat(abs_filename, filename);
 
 	file = fopen(abs_filename, "r");
-	free(abs_filename);
 
-	if (file == NULL)
+	if (file == NULL) {
 		printf("Datei %s konnte nicht geoeffnet werden.\n", abs_filename);
-	else {
+	} else {
 		while (fgets(line, sizeof(line), file) != NULL) {
 			// fuer jede zeile
 			z = strtok(line, TOKEN);
@@ -219,6 +220,7 @@ void read_file(int list[], int count, char *filename) {
 			}
 		}
 	}
+	free(abs_filename);
 
 	fclose(file);
 }
