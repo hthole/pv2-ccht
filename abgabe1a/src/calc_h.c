@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
 
 	/* Parameteranzahl pruefen */
 	if (argc != 3) {
-		printf("usage: ./%s <size> <filename>\n", argv[0]);
+		printf("usage: mpiexec -n <process#> %s <size> <filename>\n", argv[0]);
 		exit(1);
 	}
 
