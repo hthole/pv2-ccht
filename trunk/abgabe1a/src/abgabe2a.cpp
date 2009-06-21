@@ -162,32 +162,40 @@ void walk_maze (int x_pos, int y_pos, direction dir_to_walk, int last_step_count
 			return 0;
 		}
 
+		boolean made_step = false;
 		// weiterlaufen, da keine Kreuzung
-		// ACHTUNG: sicherstellen, dass nicht zurück gelaufen wird!!! TODO!!
 		// unten
 		if (came_from != unten && y_pos + 1  != '#' && (y_pos + 1 == ' ' || y_pos + 1 > last_step_count + 1)) {
 			y_pos += 1;
 			my_maze[x_pos][y_pos] = last_step_count++;
 			came_from = unten;
+			made_step = true;
 		}
 		// rechts (später optimieren je nachdem wo ziel liegt, also dann uU erst nach links)
 		else if (came_from != rechts && x_pos + 1  != '#' && (x_pos + 1 == ' ' || x_pos + 1 > last_step_count + 1)) {
 			x_pos += 1;
 			my_maze[x_pos][y_pos] = last_step_count++;
 			came_from = rechts;
+			made_step = true;
 		}
 		// links (später optimieren je nachdem wo ziel liegt, also dann uU erst nach rechts)
 		else if (came_from != links && x_pos - 1  != '#' && (x_pos - 1 == ' ' || x_pos - 1 > last_step_count + 1)) {
 			x_pos -= 1;
 			my_maze[x_pos][y_pos] = last_step_count++;
 			came_from = links;
+			made_step = true;
 		}
 		// oben
 		else if (came_from != oben && y_pos - 1  != '#' && (y_pos - 1 == ' ' || y_pos - 1 > last_step_count + 1)) {
 			y_pos -= 1;
 			my_maze[x_pos][y_pos] = last_step_count++;
 			came_from = oben;
+			made_step = true;
 		}
+
+		// kein schritt gemacht -> sackgasse
+		if (made_step == false)
+			return 0;
 
 	}
 }
