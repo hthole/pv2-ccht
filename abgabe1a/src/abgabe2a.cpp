@@ -108,44 +108,7 @@ int find_next(matrix *maze) {
 
 void walk_maze (int x_pos, int y_pos, direction dir_to_walk, int last_step_count) {
 
-	/* prüfen ob Kreuzung vorliegt */
-	int check_ways = 0;
-	int right = 0, left = 0, up = 0, down = 0;
-	if (x_pos - 1 != '#') {
-		check_ways++;
-		left = 1;
-	}
-	if (x_pos + 1 != '#') {
-		check_ways++;
-		right = 1;
-	}
-	if (y_pos - 1 != '#') {
-		check_ways++;
-		up = 1;
-	}
-	if (y_pos + 1 != '#') {
-		check_ways++;
-		down = 1;
-	}
-	if (check_ways > 2) {
-		/*
-		 * punkt zur queue hinzufügen
-		 * mögliche richtungen mitgeben
-		 * methode beenden
-		 */
-		if (left == 1)
-			add_queue (x_pos, y_pos, links, last_step_count + 1);
-		if (right == 1)
-			add_queue (x_pos, y_pos, rechts, last_step_count + 1);
-		if (up == 1)
-			add_queue (x_pos, y_pos, oben, last_step_count + 1);
-		if (down == 1)
-			add_queue (x_pos, y_pos, unten, last_step_count + 1);
-
-		return 0;
-	}
-
-
+	// ersten schritt machen
 	if (dir_to_walk == rechts)
 		x_pos++;
 	if (dir_to_walk == links)
@@ -157,7 +120,76 @@ void walk_maze (int x_pos, int y_pos, direction dir_to_walk, int last_step_count
 
 	my_maze[x_pos][y_pos] = last_step_count + 1;
 
-	return 0;
+
+	direction came_from = oben;
+	// laufen bis zur nächsten Kreuzung (später besser: bis ziel gefunden)
+	while (true) {
+		/* prüfen ob Kreuzung vorliegt */
+		int check_ways = 0;
+		int right = 0, left = 0, up = 0, down = 0;
+		if (x_pos - 1 != '#') {
+			check_ways++;
+			left = 1;
+		}
+		if (x_pos + 1 != '#') {
+			check_ways++;
+			right = 1;
+		}
+		if (y_pos - 1 != '#') {
+			check_ways++;
+			up = 1;
+		}
+		if (y_pos + 1 != '#') {
+			check_ways++;
+			down = 1;
+		}
+		if (check_ways > 2) {
+			/*
+			 * punkt zur queue hinzufügen
+			 * mögliche richtungen mitgeben
+			 * methode beenden
+			 */
+			if (left == 1)
+				add_queue (x_pos, y_pos, links, last_step_count + 1);
+			if (right == 1)
+				add_queue (x_pos, y_pos, rechts, last_step_count + 1);
+			if (up == 1)
+				add_queue (x_pos, y_pos, oben, last_step_count + 1);
+			if (down == 1)
+				add_queue (x_pos, y_pos, unten, last_step_count + 1);
+
+			// raus da!
+			return 0;
+		}
+
+		// weiterlaufen, da keine Kreuzung
+		// ACHTUNG: sicherstellen, dass nicht zurück gelaufen wird!!! TODO!!
+		// unten
+		if (came_from != unten && y_pos + 1  != '#' && (y_pos + 1 == ' ' || y_pos + 1 > last_step_count + 1)) {
+			y_pos += 1;
+			my_maze[x_pos][y_pos] = last_step_count++;
+			came_from = unten;
+		}
+		// rechts (später optimieren je nachdem wo ziel liegt, also dann uU erst nach links)
+		else if (came_from != rechts && x_pos + 1  != '#' && (x_pos + 1 == ' ' || x_pos + 1 > last_step_count + 1)) {
+			x_pos += 1;
+			my_maze[x_pos][y_pos] = last_step_count++;
+			came_from = rechts;
+		}
+		// links (später optimieren je nachdem wo ziel liegt, also dann uU erst nach rechts)
+		else if (came_from != links && x_pos - 1  != '#' && (x_pos - 1 == ' ' || x_pos - 1 > last_step_count + 1)) {
+			x_pos -= 1;
+			my_maze[x_pos][y_pos] = last_step_count++;
+			came_from = links;
+		}
+		// oben
+		else if (came_from != oben && y_pos - 1  != '#' && (y_pos - 1 == ' ' || y_pos - 1 > last_step_count + 1)) {
+			y_pos -= 1;
+			my_maze[x_pos][y_pos] = last_step_count++;
+			came_from = oben;
+		}
+
+	}
 }
 
 
