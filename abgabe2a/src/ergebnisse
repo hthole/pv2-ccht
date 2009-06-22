@@ -1,0 +1,21 @@
+$ ./a.out bra10.txt 
+Zeit: 3.6e-05s; Weglaenge: 23 Schritte
+
+$ ./a.out bra100.txt 
+Zeit: 0.000977s; Weglaenge: 335 Schritte
+
+$ ./a.out bra500.txt 
+Zeit: 0.024105s; Weglaenge: 1249 Schritte
+
+$ ./a.out per10.txt 
+Zeit: 3.7e-05s; Weglaenge: 23 Schritte
+
+$ ./a.out per250.txt 
+Zeit: 0.003956s; Weglaenge: 2517 Schritte
+
+$ ./a.out per1000.txt 
+Zeit: 0.031753s; Weglaenge: 11757 Schritte
+
+$ ./a.out per3000.txt 
+Zeit: 0.204142s; Weglaenge: 64523 Schritte
+
