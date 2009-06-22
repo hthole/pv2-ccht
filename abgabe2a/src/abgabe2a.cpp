@@ -11,8 +11,19 @@
 #include <string.h>
 #include <vector.h>
 
-typedef std::vector<char> row;
+typedef std::vector<int> row;
 typedef std::vector<row> matrix;
+
+struct q_elem {
+	q_elem(int x, int y, int dir, int start) : x(x), y(y), dir(dir), start(start) {};
+	int x;
+	int y;
+	int dir;
+	int start;
+	
+};
+
+std::vector<q_elem> queue;
 
 enum direction {
 	rechts, links, oben, unten
@@ -20,22 +31,24 @@ enum direction {
 
 int get_entry_or_exit(row entry_line);
 int find_next(matrix *maze);
-void add_queue(int x_pos, int y_pos, direction dir_to_walk,
+void add_queue(int x_pos, int y_pos, int dir_to_walk,
 				int last_step_count);
-int walk_maze(int x_pos, int y_pos, direction dir_to_walk, int last_step_count,
-		matrix *my_maze);
+int walk_maze(int x_pos, int y_pos, int dir_to_walk, int last_step_count,
+				matrix *my_maze);
+
+bool ROOT = true;
 
 int main() {
 	std::string filename =
-			"/Users/nmrd/Devel/workspaces/uni/abgabe2a/src/simple10.txt";
+			"/Users/nmrd/Devel/workspaces/uni/2a/src/bra10.txt";
 	std::ifstream fin;
 	matrix maze;
-
+	
 	// ----- read file -----
 	fin.open(filename.c_str());
 
 	if (fin) {
-		std::vector<char> tmp_row;
+		std::vector<int> tmp_row;
 
 		while (!fin.eof()) {
 			char c_buf;
@@ -43,8 +56,10 @@ int main() {
 
 			switch (c_buf) {
 			case '#':
+				tmp_row.push_back(-1);
+				break;
 			case ' ':
-				tmp_row.push_back(c_buf);
+				tmp_row.push_back(0);
 				break;
 			default:
 				if (tmp_row.size() > 0) {
@@ -63,11 +78,11 @@ int main() {
 	}
 
 	// ----- print matrix -----
-	std::vector<char> v;
+	std::vector<int> v;
 	for (unsigned int i = 0; i < maze.size(); i++) {
 		v = maze.at(i);
 		for (unsigned int j = 0; j < v.size(); j++) {
-			std::cout << v.at(j);
+			printf("%3d", v.at(j));
 		}
 		std::cout << std::endl;
 	}
@@ -76,25 +91,34 @@ int main() {
 	std::cout << "ausgang: " << get_entry_or_exit(maze.at(maze.size() - 1))
 			<< std::endl;
 
-	find_next(&maze);
-	walk_maze(get_entry_or_exit(maze.at(0)), 0, unten, 0, &maze);
+	walk_maze(get_entry_or_exit(maze.at(0)), 0, unten, 1, &maze);
+	
+	while(queue.size() > 0) {
+		q_elem elem = queue.front();
+		
+		std::cout 	<< "walk_maze: " << elem.x << ", " << elem.y 
+					<< ", " << elem.dir << ", " << elem.start << std::endl;
+		
+		queue.erase(queue.begin());
+		walk_maze(elem.x, elem.y, elem.dir, elem.start, &maze);
+	}
 
 	// ----- print matrix -----
 	for (unsigned int i = 0; i < maze.size(); i++) {
 		v = maze.at(i);
 		for (unsigned int j = 0; j < v.size(); j++) {
-			std::cout << v.at(j);
+			printf("%3d", v.at(j));
 		}
 		std::cout << std::endl;
 	}
-
+	
 	return EXIT_SUCCESS;
 }
 
 // ----- returns entry or exit field -----
 int get_entry_or_exit(row line) {
 	for (unsigned int i = 0; i < line.size(); i++) {
-		if (line.at(i) == ' ') {
+		if (line.at(i) == 0) {
 			return i;
 		}
 	}
@@ -102,155 +126,145 @@ int get_entry_or_exit(row line) {
 	return -1;
 }
 
-int find_next(matrix *maze) {
-	unsigned int row = 0;
-	unsigned int col = 5;
+int walk_maze(int x_pos, int y_pos, int dir_to_walk, int last_step_count, matrix *my_maze) {
 
-	if (col < (maze->size() - 1) && maze->at(row).at(col + 1) == ' ') {
-		std::cout << "rechts gehts weiter " << std::endl;
+	if(ROOT) {
+		my_maze->at(y_pos).at(x_pos) = last_step_count++;
+		ROOT = false;
 	}
-	if (col > 0 && maze->at(row).at(col - 1) == ' ') {
-		std::cout << "links gehts weiter " << std::endl;
-	}
-	if (row > 0 && maze->at(row - 0).at(col) == ' ') {
-		std::cout << "oben gehts weiter " << std::endl;
-	}
-	if (row < (maze->size() - 1) && maze->at(row + 1).at(col) == ' ') {
-		std::cout << "unten gehts weiter " << std::endl;
-	}
-}
-
-int walk_maze(int x_pos, int y_pos, direction dir_to_walk, int last_step_count,
-		matrix *my_maze) {
-
-	my_maze->at(y_pos).at(x_pos) = '0';
-
+	
+	direction came_from	= oben;
+	
 	// ersten schritt machen
-	if (dir_to_walk == rechts)
+	if (dir_to_walk == rechts) {
 		x_pos++;
-	if (dir_to_walk == links)
+		came_from = links;
+	} else if (dir_to_walk == links) {
 		x_pos--;
-	if (dir_to_walk == oben)
+		came_from = rechts;
+	} else if (dir_to_walk == oben) {
 		y_pos--;
-	if (dir_to_walk == unten)
+		came_from = unten;
+	} else if (dir_to_walk == unten) {
 		y_pos++;
+		came_from = oben;
+	}
 
-	//my_maze[x_pos][y_pos] = last_step_count + 1;
-	my_maze->at(y_pos).at(x_pos) = '1';
-
-	direction came_from = oben;
-	std::vector<char> v;
+	my_maze->at(y_pos).at(x_pos) = last_step_count++;
+	
+	
+	
+	bool made_step	= false;
+	bool right		= false;
+	bool left		= false;
+	bool up			= false;
+	bool down		= false;
+	
 	// laufen bis zur nächsten Kreuzung (später besser: bis ziel gefunden)
 	while (true) {
-		// ----- print matrix -----
-		for (unsigned int i = 0; i < my_maze->size(); i++) {
-			v = my_maze->at(i);
-			for (unsigned int j = 0; j < v.size(); j++) {
-				std::cout << v.at(j);
-			}
-			std::cout << std::endl;
-		}
-
 
 		/* prüfen ob Kreuzung vorliegt */
 		int check_ways = 0;
-		int right = 0, left = 0, up = 0, down = 0;
-		if (x_pos - 1 >= 0 && my_maze->at(y_pos).at(x_pos - 1) != '#') {
+		made_step = false;
+		
+		right 	= false;
+		left 	= false;
+		up 		= false;
+		down	= false;
+				
+		if (came_from != links 
+				&& my_maze->at(y_pos).at(x_pos - 1) != -1
+				&& (my_maze->at(y_pos).at(x_pos - 1) == 0
+						|| my_maze->at(y_pos).at(x_pos - 1) > last_step_count
+				)) {
 			check_ways++;
-			left = 1;
+			left = true;
 		}
-		if (x_pos < my_maze->size() && my_maze->at(y_pos).at(x_pos + 1) != '#') {
+		if (came_from != rechts 
+				&& my_maze->at(y_pos).at(x_pos + 1) != -1
+				&& (my_maze->at(y_pos).at(x_pos + 1) == 0
+						|| my_maze->at(y_pos).at(x_pos + 1) > last_step_count
+				)) {
 			check_ways++;
-			right = 1;
+			right = true;
 		}
-		if (y_pos - 1 >= 0 && my_maze->at(y_pos - 1).at(x_pos) != '#') {
+		if (y_pos - 1 >= 0
+				&& came_from != oben && my_maze->at(y_pos - 1).at(x_pos) != -1
+				&& (my_maze->at(y_pos - 1).at(x_pos) == 0
+						|| my_maze->at(y_pos - 1).at(x_pos) > last_step_count
+				)) {
 			check_ways++;
-			up = 1;
+			up = true;
 		}
-		if (y_pos < my_maze->size() && my_maze->at(y_pos + 1).at(x_pos) != '#') {
+		if (came_from != unten
+				&& (y_pos + 1) < my_maze->size() 
+				&& my_maze->at(y_pos + 1).at(x_pos) != -1
+				&& (my_maze->at(y_pos + 1).at(x_pos) == 0
+						|| my_maze->at(y_pos + 1).at(x_pos) > last_step_count
+				)) {
 			check_ways++;
-			down = 1;
+			down = true;
 		}
-		if (check_ways > 2) {
+		
+		if (check_ways >= 2) {
 			/*
 			 * punkt zur queue hinzufügen
 			 * mögliche richtungen mitgeben
 			 * methode beenden
 			 */
-			if (left == 1)
-				add_queue(x_pos, y_pos, links, last_step_count + 1);
-			if (right == 1)
-				add_queue(x_pos, y_pos, rechts, last_step_count + 1);
-			if (up == 1)
-				add_queue(x_pos, y_pos, oben, last_step_count + 1);
-			if (down == 1)
-				add_queue(x_pos, y_pos, unten, last_step_count + 1);
+			if (left)
+				add_queue(x_pos, y_pos, links, last_step_count);
+			if (right)
+				add_queue(x_pos, y_pos, rechts, last_step_count);
+			if (up)
+				add_queue(x_pos, y_pos, oben, last_step_count);
+			if (down)
+				add_queue(x_pos, y_pos, unten, last_step_count);
 
+			std::cout << "last step count: " << last_step_count << std::endl;
 			// raus da!
-			//return 0;
+			return 0;
 			std::cout << "raus da" << std::endl;
 		}
 
-		std::cout << up << " "
-					<< down << " "
-					<< left << " "
-					<< right << " " << std::endl;
-
-		bool made_step = false;
 		// weiterlaufen, da keine Kreuzung
 		// unten
-		if (down != 0 && y_pos >= my_maze->size() && came_from != oben && my_maze->at(y_pos + 1).at(x_pos) != '#'
-				&& (my_maze->at(y_pos + 1).at(x_pos) == ' '
-				|| (int)my_maze->at(y_pos + 1).at(x_pos) > last_step_count + 1)) {
+		if (down) {
 			y_pos += 1;
-			my_maze->at(y_pos).at(x_pos) = '1';
-			last_step_count++;
-			came_from = unten;
-			made_step = true;
-			std::cout << "unten" << std::endl;
-		}
-		// rechts (später optimieren je nachdem wo ziel liegt, also dann uU erst nach links)
-		else if (right != 0 && came_from != links && my_maze->at(y_pos).at(x_pos + 1) != '#'
-				&& (my_maze->at(y_pos).at(x_pos + 1) == ' '
-				|| (int)my_maze->at(y_pos).at(x_pos + 1) > last_step_count + 1)) {
-			x_pos += 1;
-			my_maze->at(y_pos).at(x_pos) = '2';
-			last_step_count++;
-			came_from = rechts;
-			made_step = true;
-			std::cout << "rechts" << std::endl;
-		}
-		// links (später optimieren je nachdem wo ziel liegt, also dann uU erst nach rechts)
-		if (left != 0 && came_from != rechts && my_maze->at(y_pos).at(x_pos - 1) != '#'
-				&& (my_maze->at(y_pos).at(x_pos - 1) == ' '
-				|| (int)my_maze->at(y_pos).at(x_pos - 1) > last_step_count + 1)) {
-			x_pos -= 1;
-			my_maze->at(y_pos).at(x_pos) = '3';
-			last_step_count++;
-			came_from = links;
-			made_step = true;
-			std::cout << "links" << std::endl;
-		}
-		// oben
-		if (up != 0 && y_pos - 1 > my_maze->size()
-						&& came_from != unten && my_maze->at(y_pos - 1).at(x_pos) != '#'
-						&& (my_maze->at(y_pos - 1).at(x_pos) == ' '
-						|| (int)my_maze->at(y_pos - 1).at(x_pos) > last_step_count + 1)) {
-			y_pos -= 1;
-			my_maze->at(y_pos).at(x_pos) = '4';
-			last_step_count++;
+			my_maze->at(y_pos).at(x_pos) = last_step_count++;
 			came_from = oben;
 			made_step = true;
-			std::cout << "oben" << std::endl;
+		}
+		// rechts (später optimieren je nachdem wo ziel liegt, also dann uU erst nach links)
+		else if (right) {
+			x_pos += 1;
+			my_maze->at(y_pos).at(x_pos) = last_step_count++;
+			came_from = links;
+			made_step = true;
+		}
+		// links (später optimieren je nachdem wo ziel liegt, also dann uU erst nach rechts)
+		if (left) {
+			x_pos -= 1;
+			my_maze->at(y_pos).at(x_pos) = last_step_count++;
+			came_from = rechts;
+			made_step = true;
+		}
+		// oben
+		if (up) {
+			y_pos -= 1;
+			my_maze->at(y_pos).at(x_pos) = last_step_count++;
+			came_from = unten;
+			made_step = true;
 		}
 
 		// kein schritt gemacht -> sackgasse
-		if (!made_step)
-			return 0;
+		if (!made_step)		return 0;
 
 	}
 }
 
-void add_queue(int x_pos, int y_pos, direction dir_to_walk, int last_step_count) {
+void add_queue(int x_pos, int y_pos, int dir_to_walk, int last_step_count) {
 
+	q_elem elem = q_elem(x_pos, y_pos, dir_to_walk, last_step_count);
+	queue.push_back(elem);
 }
