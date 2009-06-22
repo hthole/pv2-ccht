@@ -1,10 +1,14 @@
-//============================================================================
-// Name        : abgabe2a.cpp
-// Author      :
-// Version     :
-// Copyright   : Your copyright notice
-// Description : Hello World in C++, Ansi-style
-//============================================================================
+/*
+ *
+ *      Author: C. Claus, H. Thole
+ *
+ *      Kompilieren mit:
+ *      mpiCC -o abgabfslfldsflskdhflksdf calc.c
+ *
+ *      Ausführen mit:
+ *      mpiexec -n 2 fsdsfsdfdsf
+ *
+ */
 
 #include <iostream>
 #include <fstream>
