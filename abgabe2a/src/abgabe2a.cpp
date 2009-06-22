@@ -226,14 +226,14 @@ int walk_maze(int x_pos, int y_pos, int dir_to_walk, int last_step_count, matrix
 			 * mögliche richtungen mitgeben
 			 * methode beenden
 			 */
+			if (down)
+				add_queue(x_pos, y_pos, unten, last_step_count);
 			if (left)
 				add_queue(x_pos, y_pos, links, last_step_count);
 			if (right)
 				add_queue(x_pos, y_pos, rechts, last_step_count);
 			if (up)
 				add_queue(x_pos, y_pos, oben, last_step_count);
-			if (down)
-				add_queue(x_pos, y_pos, unten, last_step_count);
 
 			//std::cout << "last step count: " << last_step_count << std::endl;
 			// raus da!
