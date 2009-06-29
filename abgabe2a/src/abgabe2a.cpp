@@ -1,19 +1,18 @@
-/*
- *
- *      Author: C. Claus, H. Thole
- *
- *      Kompilieren mit:
- *      mpiCC -o abgabfslfldsflskdhflksdf calc.c
- *
- *      Ausf√ºhren mit:
- *      mpiexec -n 2 fsdsfsdfdsf
- *
- */
+//============================================================================
+// Name        : abgabe2a.cpp
+// Author      : Hendrik Thole & Christian Claus
+// Version     :
+// Copyright   : Steal this code!
+// Description : Parallel Maze solving algorithm in C++ & MPI, Ansi-style
+// Compile     : Use the mpich2 intel Compiler
+//               mpicxx -o abgabe2a abgabe2a.cpp
+//============================================================================
 
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
+#include <math.h>
 
 #ifdef	SEEK_SET
 #undef	SEEK_SET
@@ -30,7 +29,8 @@
 #include "mpi.h"
 
 #define ROOT	0
-#define PROCS	8
+
+// ----------------------------------------------------------------------
 
 typedef std::vector<int> row;
 typedef std::vector<row> matrix;
@@ -41,102 +41,216 @@ struct q_elem {
 	int y;
 	int dir;
 	int value;
-
 };
-
-std::vector<q_elem> queue;
 
 enum direction {
 	rechts, links, oben, unten
 };
 
+bool FIRST_RUN = true;
+std::vector<q_elem> queue;
+
+// ----------------------------------------------------------------------
+
 int		get_entry_or_exit(row entry_line);
 int		find_next(matrix *maze);
-void	add_queue(int x_pos, int y_pos, int dir_to_walk, int last_step_count);
 int		walk_maze(int x_pos, int y_pos, int dir_to_walk, int last_step_count, matrix *my_maze, int exit_pos);
+void	add_queue(int x_pos, int y_pos, int dir_to_walk, int last_step_count);
 
-bool FIRST_RUN = true;
+// ----------------------------------------------------------------------
 
 int main(int argc, char *argv[]) {
-	std::ifstream fin;
-	matrix maze;
-	double start_time, end_time;
-	int entry_pos, exit_pos, done;
+	
+	/*
+	 * Variablen Deklaration
+	 */
+	std::ifstream 	fin;
+	matrix 			maze;
+	row 		 	list_maze;
+	double 			start_time, 
+					end_time;
+	int 			entry_pos, 
+					exit_pos, 
+					num_procs, 
+					maze_size,
+					maze_length,
+					me;
 
-	// MPI-Initialisierung 
+	/*
+	 *  MPI-Initialisierung
+	 */ 
 	MPI::Init(argc, argv);
 	
-	// Wer bin ich?
-	int me = MPI::COMM_WORLD.Get_rank();
+	/*
+	 *  Wer bin ich?
+	 */
+	me = MPI::COMM_WORLD.Get_rank();
+	num_procs = MPI::COMM_WORLD.Get_size();
+
+	// ----------------------------------------------------------------------
 	
-	// Auf alle Prozesse warten
-	MPI::COMM_WORLD.Barrier();
-	
-	// Jeder Prozess liest Datei ein
-	fin.open(argv[1]);
+	/*
+	 * Master Prozess liest Datei ein
+	 */
+	if (me == ROOT) {
+		maze_size = 0;
+		fin.open(argv[1]);
 
-	if (fin) {
-		std::vector<int> tmp_row;
+		if (fin) {
+			bool worked_on_line = false;
+			while (!fin.eof()) {
+				char c_buf;
+				fin.get(c_buf);
 
-		while (!fin.eof()) {
-			char c_buf;
-			fin.get(c_buf);
-
-			switch (c_buf) {
-			case '#':
-				tmp_row.push_back(-1);
-				break;
-			case ' ':
-				tmp_row.push_back(0);
-				break;
-			default:
-				if (tmp_row.size() > 0) {
-					maze.push_back(tmp_row);
-					tmp_row.clear();
+				switch (c_buf) {
+				case '#':
+					list_maze.push_back(-1);
+					worked_on_line = true;
+					
+					break;
+				case ' ':
+					list_maze.push_back(0);
+					worked_on_line = true;
+					
+					break;
+				case '\n':
+					if (worked_on_line) {
+						maze_size++;
+						worked_on_line = false;
+						
+					}
+					
+					break;
 				}
-				break;
 			}
-		}
 
-		fin.close();
+			fin.close();
+			
+		} else {
+			std::cout << "konnte datei " << argv[1]
+					  << " nicht finden / oeffnen" << std::endl;
+			
+			return EXIT_FAILURE;
+			
+		}
+		
+		/*
+		 * Master bereitet Arrays vor und veschickt diese
+		 */
+		maze_length = maze_size * maze_size;
+		int maze_as_array[maze_length];
+		
+		for (int i = 0; i < maze_length; i++) {
+			maze_as_array[i] = list_maze.at(i);
+		}
+		for (int i = 1; i < num_procs; i++) {
+			MPI::COMM_WORLD.Isend(&maze_length, 1, MPI::INT, i, 1);
+			MPI::COMM_WORLD.Isend(maze_as_array, maze_length, MPI::INT, i, 2);
+		}
+		
+		row tmp_row;
+		int col_counter = 1;
+
+		for (int i = 0; i < maze_length; i++) {
+			tmp_row.push_back(maze_as_array[i]);
+			if (col_counter % maze_size == 0) {
+				maze.push_back(tmp_row);
+				tmp_row.clear();
+			}
+			col_counter++;
+		}
+		
 	} else {
-		std::cout << "konnte datei " << argv[1] << " nicht finden / oeffnen" << std::endl;
-		return EXIT_FAILURE;
+		/*
+		 * Slaves Empfangen Arraygroesse und anschliessend Array
+		 */
+		MPI::COMM_WORLD.Recv(&maze_length, 1, MPI::INT, 0, 1);
+		int maze_as_array[maze_length];
+
+		MPI::COMM_WORLD.Recv(maze_as_array, maze_length, MPI::INT, 0, 2);
+		
+		row tmp_row;
+		int col_counter = 1;
+		maze_size		= (int)sqrt((double) maze_length);
+		
+		for (int i = 0; i < maze_length; i++) {
+			tmp_row.push_back(maze_as_array[i]);
+			
+			if (col_counter % maze_size == 0) {
+				maze.push_back(tmp_row);
+				tmp_row.clear();
+			}
+			col_counter++;
+		}
 	}
+
+	/*
+	 * Matrix ausgeben...
+	 *
+	if (me == 0) {
+		row tmp_row;
+		for (unsigned int i = 0; i < maze.size(); i++) {
+			tmp_row = maze.at(i);
+			for (unsigned int j = 0; j < tmp_row.size(); j++) {
+				printf("%3d", tmp_row.at(j));
+			}
+			std::cout << std::endl;
+		}
+	}*/
 	
-	// Auf alle Prozesse warten
+	// ----------------------------------------------------------------------
+	
+	/*
+	 * Auf alle Prozesse warten
+	 */
 	MPI::COMM_WORLD.Barrier();
 	
-	// Jetzt fängt der 'richtige' paralele Teil an: Zeitnahme starten
+	/*
+	 * Jetzt fängt der 'richtige' paralele Teil an: Zeitnahme starten
+	 */
 	if (me == ROOT) {
 		start_time = MPI_Wtime();
 	}
 	
-	// Ein- und Ausgang berechnen
+	/*
+	 * Ein- und Ausgang berechnen
+	 */
 	entry_pos = get_entry_or_exit(maze.at(0));
-	exit_pos = get_entry_or_exit(maze.at(maze.size() - 1));
+	exit_pos  = get_entry_or_exit(maze.at(maze.size() - 1));
 	
 	if (me == ROOT) {
-		// Master sucht ersten Knoten zum verteilen
+		/*
+		 * Master sucht ersten Knoten zum verteilen
+		 */
 		walk_maze(entry_pos, 0, unten, 1, &maze, exit_pos);
 
-		// Queue ueber Prozesse bauen
+		/*
+		 * Queue ueber Prozesse bauen
+		 */
 		std::vector<int> processes;
-		for(int i = 1; i < PROCS; i++) {
+		for(int i = 1; i < num_procs; i++) {
 			processes.push_back(i);
 		}
 		
-		// Starte eine Endlosschleife
+		/*
+		 * Starte eine Endlosschleife
+		 */
 		while (true) {
 			int recv_node[4];
 			
-			// Receive im Hintergrund starten um Ergebnisse der Slaves abzufangen
+			/*
+			 * Receive im Hintergrund starten um Ergebnisse der Slaves abzufangen
+			 */
 			MPI::Request req_i = MPI::COMM_WORLD.Irecv(&recv_node, 4, MPI::INT, MPI::ANY_SOURCE, 42);
 			MPI::Status status_i;
 
-			// Solange die Queue nicht leer ist und noch Prozesse verfügbar sind
+			/*
+			 * Solange die Queue nicht leer ist und noch Prozesse verfügbar sind
+			 */
 			while (queue.size() > 0 && processes.size() > 0) {
-				// Erste Elemente der Queue holen und danach loeschen
+				/*
+				 * Erste Elemente der Queue holen und danach loeschen
+				 */
 				q_elem elem = queue.front();
 				int node[] = { elem.x, elem.y, elem.dir, elem.value };
 				int proc_num = processes.front();
@@ -144,45 +258,63 @@ int main(int argc, char *argv[]) {
 				queue.erase(queue.begin());
 				processes.erase(processes.begin());
 				
-				// Ersten Job der Job-Queue an ersten Prozess der Prozess-Queue schicken
+				/*
+				 * Ersten Job der Job-Queue an ersten Prozess der Prozess-Queue schicken
+				 */
 				MPI::COMM_WORLD.Isend(node, 4, MPI::INT, proc_num, 23);
 			}
 			
-			// Wenn alle Prozesse zurueckgekehrt sind und Job-Queue leer ist
-			if (processes.size() == (PROCS - 1) && queue.size() == 0) {
+			/*
+			 * Wenn alle Prozesse zurueckgekehrt sind und Job-Queue leer ist
+			 */
+			if (processes.size() == (num_procs - 1) && queue.size() == 0) {
 				int kill_signal[] = { 0, 0, 0, 0 };
 
-				// Master sendet an alle Slaves das kill Signal
-				for (int i = 1; i < PROCS; i++) {
+				/*
+				 * Master sendet an alle Slaves das kill Signal
+				 */
+				for (int i = 1; i < num_procs; i++) {
 					MPI::COMM_WORLD.Send(kill_signal, 4, MPI::INT, i, 23);
 				}
 
-				// MPI::Request Objekt wird abgebrochen, so dass nicht weiter gewartet wird
+				/*
+				 * MPI::Request Objekt wird abgebrochen, so dass nicht weiter gewartet wird
+				 */
 				req_i.Cancel();
 				
 				break;
 			}
 
-			// Warten, bis das Irecv etwas empfangen hat
+			/*
+			 * Warten, bis das Irecv etwas empfangen hat
+			 */
 			req_i.Wait(status_i);
 			
-			// Wenn Slave das Kill Signal geschickt hat
+			/*
+			 * Wenn Slave das Kill Signal geschickt hat
+			 */
 			if (recv_node[0] == 0) {
-				// Prozess Nummer wieder in Process-Queue einreihen
+				/*
+				 * Prozess Nummer wieder in Process-Queue einreihen
+				 */
 				int proc_num = status_i.Get_source();
 				processes.push_back(proc_num);
 
-				// Einpflegen des Empfangpuffers in die Job-Queue ueberspringen
+				/*
+				 * Einpflegen des Empfangpuffers in die Job-Queue ueberspringen
+				 */
 				continue;
 			}
 				
-			/* Switch ueber die Richtungen, des Empfangspuffers. Hier erfolgt eine Pruefung,
+			/* 
+			 * Switch ueber die Richtungen, des Empfangspuffers. Hier erfolgt eine Pruefung,
 			 * ob der Master die Ergebnisse in die Job-Queue haengen soll - oder ob bereits
 			 * 'bessere' Werte in der Matrix stehen
 			 */
 			switch (recv_node[2]) {
 			case unten:
-				/* Wenn Element unter dem Element des Empfangspuffers frei - oder groesser
+				/* 
+				 * Wenn Element unter dem Element des Empfangspuffers frei - oder groesser
 				 * als das im Empfangspuffer - ist wird in die Job-Queue eingereiht  
 				 * (rest genauso...)
 				 */
@@ -211,7 +343,9 @@ int main(int argc, char *argv[]) {
 				break;
 			}
 			
-			// Wenn Element aus Empfangspuffer geeignet ist, wird es in die Matrix geschrieben
+			/*
+			 * Wenn Element aus Empfangspuffer geeignet ist, wird es in die Matrix geschrieben
+			 */
 			if (maze[recv_node[1]][recv_node[0]] == 0 
 					|| maze[recv_node[1]][recv_node[0]] > recv_node[3]) {
 				maze[recv_node[1]][recv_node[0]] = recv_node[3];
@@ -219,23 +353,34 @@ int main(int argc, char *argv[]) {
 		}
 		
 	} else {
-		// Jeder Slave bekommt ein Job Array 
+		/*
+		 * Jeder Slave bekommt ein Job Array
+		 */ 
 		int node[4];
 		
-		// Starten einer Endlosschleife
+		/*
+		 * Starten einer Endlosschleife
+		 */
 		while(true) {
-			// Das Job-Array wird durch den Master gefuellt
+			/*
+			 * Das Job-Array wird durch den Master gefuellt
+			 */
 			MPI::COMM_WORLD.Recv(node, 4, MPI::INT, 0, 23);
 			
-			// Wenn Master kill Signal geschickt hat, Schleife verlassen
+			/*
+			 * Wenn Master kill Signal geschickt hat, Schleife verlassen
+			 */
 			if(node[0] == 0) {
 				break;
 			}
 			
-			// Das Labyrinth wird mit den Daten des Empfangspuffers durchlaufen
+			/*
+			 * Das Labyrinth wird mit den Daten des Empfangspuffers durchlaufen
+			 */
 			walk_maze(node[0], node[1], node[2], node[3], &maze, exit_pos);
 			
-			/* Jeder Slave hat eine eigene Queue mit Knotenpunkten, die durch
+			/* 
+			 * Jeder Slave hat eine eigene Queue mit Knotenpunkten, die durch
 			 * die walk_maze Prozedur gefuellt werden. Diese werden jetzt nacheinander
 			 * an den Master geschickt und aus der Queue entfernt
 			 */
@@ -252,7 +397,9 @@ int main(int argc, char *argv[]) {
 				queue.erase(queue.begin());
 			}
 			
-			// Dem Master wird Bescheid gegeben, dass der Slave mit dem Pfad fertig ist
+			/*
+			 * Dem Master wird Bescheid gegeben, dass der Slave mit dem Pfad fertig ist
+			 */
 			for (int i = 0; i < 4; i++) {
 				node[i] = 0;
 			}
@@ -260,7 +407,9 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	// Zum Abschluss noch die Zeitnahme und Weglaenge
+	/*
+	 * Zum Abschluss noch die Zeitnahme und Weglaenge
+	 */
 	if (me == ROOT) {
 		end_time = MPI_Wtime();
 
@@ -268,7 +417,9 @@ int main(int argc, char *argv[]) {
 		std::cout << "\nZeit gemessen: " << (end_time - start_time) << " Sekunden" << std::endl;
 	}
 	
-	// Außerdem wird die MPI Laufzeitumgebung beendet
+	/*
+	 * Außerdem wird die MPI Laufzeitumgebung beendet
+	 */
 	MPI::Finalize(); 
 	
 	return EXIT_SUCCESS;
@@ -289,7 +440,7 @@ int get_entry_or_exit(row line) {
 }
 
 /*
- * 
+ * Labyrinth ablaufen
  */
 int walk_maze(int x_pos, int y_pos, int dir_to_walk, int last_step_count, matrix *my_maze, int exit_pos) {
 
@@ -300,7 +451,9 @@ int walk_maze(int x_pos, int y_pos, int dir_to_walk, int last_step_count, matrix
 
 	direction came_from	= oben;
 
-	// ersten schritt machen
+	/*
+	 * ersten schritt machen
+	 */
 	switch (dir_to_walk) {
 	case rechts:
 		x_pos++;
@@ -332,7 +485,9 @@ int walk_maze(int x_pos, int y_pos, int dir_to_walk, int last_step_count, matrix
 
 	int goal_steps = -1;
 
-	// laufen bis zur naechsten Kreuzung (spaeter besser: bis ziel gefunden)
+	/*
+	 * laufen bis zur naechsten Kreuzung (spaeter besser: bis ziel gefunden)
+	 */
 	while (true) {
 
 		// pruefen, ob abgebrochen werden kann, da sonst mehr schritte als im ziel benoetigt wuerden
@@ -341,7 +496,9 @@ int walk_maze(int x_pos, int y_pos, int dir_to_walk, int last_step_count, matrix
 		//	return 0;
 		//}
 
-		/* pruefen ob Kreuzung vorliegt */
+		/*
+		 * pruefen ob Kreuzung vorliegt
+		 */
 		int check_ways = 0;
 		made_step = false;
 
@@ -391,30 +548,40 @@ int walk_maze(int x_pos, int y_pos, int dir_to_walk, int last_step_count, matrix
 			return 0;
 		}
 		
-		// weiterlaufen, da keine Kreuzung
+		/*
+		 * weiterlaufen, da keine Kreuzung
+		 */
 		
-		// unten
+		/*
+		 * unten
+		 */
 		if (down) {
 			y_pos += 1;
 			my_maze->at(y_pos).at(x_pos) = ++last_step_count;
 			came_from = oben;
 			made_step = true;
 		}
-		// rechts (sp√§ter optimieren je nachdem wo ziel liegt, also dann uU erst nach links)
+		/*
+		 * rechts (spaeter optimieren je nachdem wo ziel liegt, also dann uU erst nach links)
+		 */
 		else if (right) {
 			x_pos += 1;
 			my_maze->at(y_pos).at(x_pos) = ++last_step_count;
 			came_from = links;
 			made_step = true;
 		}
-		// links (sp√§ter optimieren je nachdem wo ziel liegt, also dann uU erst nach rechts)
+		/*
+		 * links (spaeter optimieren je nachdem wo ziel liegt, also dann uU erst nach rechts)
+		 */
 		else if (left) {
 			x_pos -= 1;
 			my_maze->at(y_pos).at(x_pos) = ++last_step_count;
 			came_from = rechts;
 			made_step = true;
 		}
-		// oben
+		/*
+		 * oben
+		 */
 		else if (up) {
 			y_pos -= 1;
 			my_maze->at(y_pos).at(x_pos) = ++last_step_count;
@@ -425,7 +592,9 @@ int walk_maze(int x_pos, int y_pos, int dir_to_walk, int last_step_count, matrix
 		if(y_pos == (my_maze->size() - 1))
 			add_queue(x_pos, y_pos, oben, last_step_count);
 		
-		// kein schritt gemacht -> sackgasse
+		/*
+		 * kein schritt gemacht -> sackgasse
+		 */
 		if (!made_step)		return 0;
 
 	}
