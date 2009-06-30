@@ -11,7 +11,7 @@
  *
  *
  *      Ausführen mit:
- *      ./cuda
+ *      ./cuda  <Device ID> <Anzahl der Zahlen> <Dateiname>
  *
  *      Die einzulesenden Dateien muessen sich in "../resources/" befinden.
  */
@@ -42,18 +42,21 @@ void print_debug(int list[], int tmp[], int count);
 
 int main(int argc, char **argv) {
 	/* Parameteranzahl pruefen */
-	if (argc != 3) {
-		printf("usage: %s <size> <filename>\n", argv[0]);
+	if (argc != 4) {
+		printf("usage: %s <device id> <size> <filename>\n", argv[0]);
 		exit(1);
 	}
 
 	//double start_time, end_time; // fuer Zeitnahme
 
+	/* Device setzen */
+	cudaSetDevice (atoi(argv[1]));
+
 	/*  Host- und Devicearray einrichten */
 	int *array_host, *array_host_tmp, *array_device, *array_device_tmp;
 
 	// konvertiere die Uebergabeparameter von char zu int
-	const int elements = atoi(argv[1]);
+	const int elements = atoi(argv[2]);
 
 	/* Array für Host und Device allokieren */
 	size_t size = elements * sizeof(int);
@@ -64,8 +67,8 @@ int main(int argc, char **argv) {
 
 
 	/* Datei in Hostarray einlesen */
-	read_file(array_host, elements, argv[2]);
-	read_file(array_host_tmp, elements, argv[2]);
+	read_file(array_host, elements, argv[3]);
+	read_file(array_host_tmp, elements, argv[3]);
 
 	/* Hostarray zu CUDA-Device kopieren */
 	cudaMemcpy(array_device, array_host, size, cudaMemcpyHostToDevice);
