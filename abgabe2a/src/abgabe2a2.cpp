@@ -144,8 +144,8 @@ int main(int argc, char *argv[]) {
 			maze_as_array[i] = list_maze.at(i);
 		}
 		for (int i = 1; i < num_procs; i++) {
-			MPI::COMM_WORLD.Send(&maze_length, 1, MPI::INT, i, 1);
-			MPI::COMM_WORLD.Send(maze_as_array, maze_length, MPI::INT, i, 2);
+			MPI::COMM_WORLD.Isend(&maze_length, 1, MPI::INT, i, 1);
+			MPI::COMM_WORLD.Isend(maze_as_array, maze_length, MPI::INT, i, 2);
 		}
 		
 		row tmp_row;
@@ -184,6 +184,20 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	/*
+	 * Matrix ausgeben...
+	 *
+	if (me == 0) {
+		row tmp_row;
+		for (unsigned int i = 0; i < maze.size(); i++) {
+			tmp_row = maze.at(i);
+			for (unsigned int j = 0; j < tmp_row.size(); j++) {
+				printf("%3d", tmp_row.at(j));
+			}
+			std::cout << std::endl;
+		}
+	}*/
+	
 	// ----------------------------------------------------------------------
 	
 	/*
@@ -222,12 +236,12 @@ int main(int argc, char *argv[]) {
 		 * Starte eine Endlosschleife
 		 */
 		while (true) {
-			int recv_node[12];
+			int recv_node[4];
 			
 			/*
 			 * Receive im Hintergrund starten um Ergebnisse der Slaves abzufangen
 			 */
-			MPI::Request req_i = MPI::COMM_WORLD.Irecv(&recv_node, 12, MPI::INT, MPI::ANY_SOURCE, 42);
+			MPI::Request req_i = MPI::COMM_WORLD.Irecv(&recv_node, 4, MPI::INT, MPI::ANY_SOURCE, 42);
 			MPI::Status status_i;
 
 			/*
@@ -276,69 +290,66 @@ int main(int argc, char *argv[]) {
 			 */
 			req_i.Wait(status_i);
 			
-			int z      = 0;
-			bool go_on = false;
-			
-			while (z < 12) {
-				if (recv_node[z] == 0) {
-					go_on = true;
-					break;
-				}
-				
-				int x 	  = recv_node[z++];
-				int y 	  = recv_node[z++];
-				int dir	  = recv_node[z++];
-				int value = recv_node[z++];
-				
-				/* 
-				 * Switch ueber die Richtungen, des Empfangspuffers. Hier erfolgt eine Pruefung,
-				 * ob der Master die Ergebnisse in die Job-Queue haengen soll - oder ob bereits
-				 * 'bessere' Werte in der Matrix stehen
-				 */
-				switch (dir) {
-				case unten:
-					/* 
-					 * Wenn Element unter dem Element des Empfangspuffers frei - oder groesser
-					 * als das im Empfangspuffer - ist wird in die Job-Queue eingereiht  
-					 * (rest genauso...)
-					 */
-					if (maze[y + 1][x] == 0 || maze[y + 1][x] > value + 1) {
-						add_queue(x, y, dir, value);
-					}
-					break;
-				case links:
-					if (maze[y][x - 1] == 0 || maze[y][x - 1] > value + 1) {
-						add_queue(x, y, dir, value);
-					}
-					break;
-				case rechts:
-					if (maze[y][x + 1] == 0 || maze[y][x + 1] > value + 1) {
-						add_queue(x, y, dir, value);
-					}
-					break;
-				case oben:
-					if (maze[y - 1][x] == 0 || maze[y - 1][x] > value + 1) {
-						add_queue(x, y, dir, value);
-					}
-					break;
-				}
-				
+			/*
+			 * Wenn Slave das Kill Signal geschickt hat
+			 */
+			if (recv_node[0] == 0) {
 				/*
-				 * Wenn Element aus Empfangspuffer geeignet ist, wird es in die Matrix geschrieben
+				 * Prozess Nummer wieder in Process-Queue einreihen
 				 */
-				if (maze[y][x] == 0 || maze[y][x] > value) {
-					maze[y][x] = value;
-				}
-
-			}
-			
-			if (go_on || z >= 12) {
 				int proc_num = status_i.Get_source();
 				processes.push_back(proc_num);
-				
+
+				/*
+				 * Einpflegen des Empfangpuffers in die Job-Queue ueberspringen
+				 */
 				continue;
 			}
 				
+			/* 
+			 * Switch ueber die Richtungen, des Empfangspuffers. Hier erfolgt eine Pruefung,
+			 * ob der Master die Ergebnisse in die Job-Queue haengen soll - oder ob bereits
+			 * 'bessere' Werte in der Matrix stehen
+			 */
+			switch (recv_node[2]) {
+			case unten:
+				/* 
+				 * Wenn Element unter dem Element des Empfangspuffers frei - oder groesser
+				 * als das im Empfangspuffer - ist wird in die Job-Queue eingereiht  
+				 * (rest genauso...)
+				 */
+				if (maze[recv_node[1] + 1][recv_node[0]] == 0
+						|| maze[recv_node[1] + 1][recv_node[0]] > recv_node[3] + 1) {
+					add_queue(recv_node[0], recv_node[1], recv_node[2], recv_node[3]);
+				}
+				break;
+			case links:
+				if (maze[recv_node[1]][recv_node[0] - 1] == 0 
+						|| maze[recv_node[1]][recv_node[0] - 1] > recv_node[3] + 1) {
+					add_queue(recv_node[0], recv_node[1], recv_node[2], recv_node[3]);
+				}
+				break;
+			case rechts:
+				if (maze[recv_node[1]][recv_node[0] + 1] == 0 
+						|| maze[recv_node[1]][recv_node[0] + 1] > recv_node[3] + 1) {
+					add_queue(recv_node[0], recv_node[1], recv_node[2], recv_node[3]);
+				}
+				break;
+			case oben:
+				if (maze[recv_node[1] - 1][recv_node[0]] == 0
+						|| maze[recv_node[1] - 1][recv_node[0]] > recv_node[3] + 1) {
+					add_queue(recv_node[0], recv_node[1], recv_node[2], recv_node[3]);
+				}
+				break;
+			}
+			
+			/*
+			 * Wenn Element aus Empfangspuffer geeignet ist, wird es in die Matrix geschrieben
+			 */
+			if (maze[recv_node[1]][recv_node[0]] == 0 
+					|| maze[recv_node[1]][recv_node[0]] > recv_node[3]) {
+				maze[recv_node[1]][recv_node[0]] = recv_node[3];
+			}
 		}
 		
 	} else {
@@ -373,24 +384,26 @@ int main(int argc, char *argv[]) {
 			 * die walk_maze Prozedur gefuellt werden. Diese werden jetzt nacheinander
 			 * an den Master geschickt und aus der Queue entfernt
 			 */
-			int slave_send_node[12];
-			for (int i = 0; i < 12; i++) {
-				slave_send_node[i] = 0;
-			}
-			
-			int z = 0;
-			while (queue.size() > 0) {
+			while(queue.size() > 0) {
 				q_elem slave_node = queue.front();
 				
-				slave_send_node[z++] = slave_node.x;
-				slave_send_node[z++] = slave_node.y;
-				slave_send_node[z++] = slave_node.dir;
-				slave_send_node[z++] = slave_node.value;
+				node[0] = slave_node.x;
+				node[1] = slave_node.y;
+				node[2] = slave_node.dir;
+				node[3] = slave_node.value;
+				
+				MPI::COMM_WORLD.Send(node, 4, MPI::INT, 0, 42);
 				
 				queue.erase(queue.begin());
 			}
 			
-			MPI::COMM_WORLD.Send(slave_send_node, 12, MPI::INT, 0, 42);
+			/*
+			 * Dem Master wird Bescheid gegeben, dass der Slave mit dem Pfad fertig ist
+			 */
+			for (int i = 0; i < 4; i++) {
+				node[i] = 0;
+			}
+			MPI::COMM_WORLD.Send(node, 4, MPI::INT, 0, 42);
 		}
 	}
 
@@ -399,19 +412,8 @@ int main(int argc, char *argv[]) {
 	 */
 	if (me == ROOT) {
 		end_time = MPI_Wtime();
-
 		std::cout << "Weglaenge: " << maze.at(maze.size() - 1).at(exit_pos) << std::endl;
 		std::cout << "\nZeit gemessen: " << (end_time - start_time) << " Sekunden" << std::endl;
-		
-		
-		// ----- print matrix -----
-/*		for (unsigned int i = 0; i < maze.size(); i++) {
-			v = maze.at(i);
-			for (unsigned int j = 0; j < v.size(); j++) {
-				printf("%3d", v.at(j));
-			}
-			std::cout << std::endl;
-		}*/
 	}
 	
 	/*
