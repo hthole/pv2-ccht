@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <cuda.h>
 
 
@@ -81,8 +82,14 @@ int main(int argc, char **argv) {
 	prefix_sum <<< 1, elements >>> (array_device, array_device_tmp, elements);
 	// Retrieve result from device and store it in host array
 	cudaMemcpy(array_host, array_device, size, cudaMemcpyDeviceToHost);
+
 	// Print results
-	print_debug(array_host, array_host_tmp, elements);
+	//print_debug(array_host, array_host_tmp, elements);
+
+	for (int i = 0; i < elements; i++) {
+		assert (array_host[i] == array_host_tmp[i]);
+	}
+
 	// Cleanup
 	free(array_host);
 	cudaFree(array_device);
