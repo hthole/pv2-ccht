@@ -401,17 +401,19 @@ int main(int argc, char *argv[]) {
 		end_time = MPI_Wtime();
 
 		std::cout << "Weglaenge: " << maze.at(maze.size() - 1).at(exit_pos) << std::endl;
-		std::cout << "\nZeit gemessen: " << (end_time - start_time) << " Sekunden" << std::endl;
+		std::cout << "Zeit gemessen: " << (end_time - start_time) << " Sekunden" << std::endl << std::endl;
 		
 		
 		// ----- print matrix -----
-/*		for (unsigned int i = 0; i < maze.size(); i++) {
-			v = maze.at(i);
+		/*
+		for (unsigned int i = 0; i < maze.size(); i++) {
+			row v = maze.at(i);
 			for (unsigned int j = 0; j < v.size(); j++) {
 				printf("%3d", v.at(j));
 			}
 			std::cout << std::endl;
-		}*/
+		}
+		*/
 	}
 	
 	/*
@@ -472,7 +474,7 @@ int walk_maze(int x_pos, int y_pos, int dir_to_walk, int last_step_count, matrix
 	
 	my_maze->at(y_pos).at(x_pos) = ++last_step_count;
 	
-	add_queue(x_pos, y_pos, came_from, last_step_count);
+	//add_queue(x_pos, y_pos, came_from, last_step_count);
 	
 	bool made_step	= false;
 	bool right		= false;
@@ -505,24 +507,28 @@ int walk_maze(int x_pos, int y_pos, int dir_to_walk, int last_step_count, matrix
 		down	= false;
 
 		if (came_from != links
-				&& my_maze->at(y_pos).at(x_pos - 1) != -1) {
+				&& (my_maze->at(y_pos).at(x_pos - 1) == 0
+					|| my_maze->at(y_pos).at(x_pos - 1) > last_step_count)) {
 			check_ways++;
 			left = true;
 		}
 		if (came_from != rechts
-				&& my_maze->at(y_pos).at(x_pos + 1) != -1) {
+				&& (my_maze->at(y_pos).at(x_pos + 1) == 0
+					|| my_maze->at(y_pos).at(x_pos + 1) > last_step_count)) {
 			check_ways++;
 			right = true;
 		}
 		if (y_pos - 1 >= 0
 				&& came_from != oben 
-				&& my_maze->at(y_pos - 1).at(x_pos) != -1) {
+				&& (my_maze->at(y_pos - 1).at(x_pos) == 0
+					|| my_maze->at(y_pos - 1).at(x_pos) > last_step_count)) {
 			check_ways++;
 			up = true;
 		}
 		if (came_from != unten
 				&& (y_pos + 1) < my_maze->size()
-				&& my_maze->at(y_pos + 1).at(x_pos) != -1) {
+				&& (my_maze->at(y_pos + 1).at(x_pos) == 0
+						|| my_maze->at(y_pos + 1).at(x_pos) > last_step_count)) {
 			check_ways++;
 			down = true;
 		}
