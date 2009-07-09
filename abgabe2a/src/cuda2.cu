@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
 	
 	
 	/* 
-	 * Array für Host und Device allokieren
+	 * allocate the memory on host and device
 	 */
 	
 	size_t size 		 = elements * sizeof(float);
